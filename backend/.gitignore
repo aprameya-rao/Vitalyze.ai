@@ -1,2 +1,38 @@
-.env
+# Virtual Environment
+# Never commit your virtual environment folder
 venv/
+.venv/
+env/
+.env/
+
+# Environment variables
+# Contains secrets and should not be versioned.
+.env
+.env.*
+!.env.example
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Celery
+# Runtime file, should not be committed
+.celerybeat-schedule
+
+# IDE and editor configuration
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Operating System specific files
+.DS_Store
+Thumbs.db   
