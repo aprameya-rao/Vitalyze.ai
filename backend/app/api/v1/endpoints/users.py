@@ -20,6 +20,3 @@ async def read_user_by_id(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
-
-# We have removed the POST method from this file.
-# All user creation should now go through /api/v1/auth/register.
