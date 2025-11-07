@@ -10,41 +10,25 @@ logger = logging.getLogger(__name__)
 
 # --- Celery Tasks ---
 
-# @celery.task
-# def send_daily_reminder_task(user_name: str, phone_number: str, medicine_name: str):
-#     """Celery task to send a daily medicine reminder via WhatsApp."""
-#     logger.info(f"Executing daily reminder for {user_name} for medicine {medicine_name}.")
-    
-#     # Using the new, approved template name
-#     template_name = "medication_reminder_v3"
-    
-#     # The values for the variables {{1}} and {{2}} in your template
-#     template_params = [user_name, medicine_name]
-    
-#     success = whatsapp_service.send_template_message(phone_number, template_name, template_params)
-    
-#     if success:
-#         return f"Daily reminder sent to {user_name}."
-#     else:
-#         return f"Failed to send daily reminder to {user_name}."
-    
-
 @celery.task
 def send_daily_reminder_task(user_name: str, phone_number: str, medicine_name: str):
+    """Celery task to send a daily medicine reminder via WhatsApp."""
     logger.info(f"Executing daily reminder for {user_name} for medicine {medicine_name}.")
     
-    # 1. You already changed this
-    template_name = "hello_world" 
+    # Using the new, approved template name
+    template_name = "medication_reminder_v3"
     
-    # 2. THIS IS THE CRITICAL CHANGE - It must be an empty list
-    template_params = [] 
+    # The values for the variables {{1}} and {{2}} in your template
+    template_params = [user_name, medicine_name]
     
     success = whatsapp_service.send_template_message(phone_number, template_name, template_params)
     
     if success:
-        return f"Hello World test sent to {user_name}."
+        return f"Daily reminder sent to {user_name}."
     else:
-        return f"Failed to send Hello World test to {user_name}."
+        return f"Failed to send daily reminder to {user_name}."
+    
+
 
 @celery.task
 def send_refill_reminder_task(user_name: str, phone_number: str, medicine_name: str):
