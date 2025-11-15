@@ -1,0 +1,250 @@
+/* Global container and layout */
+.medical-locator-container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 20px;
+    font-family: 'Inter', sans-serif;
+    background-color: #f8fafc;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.main-title {
+    text-align: center;
+    color: #0d9488; /* Teal */
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #64748b; /* Slate */
+    margin-bottom: 30px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 15px;
+}
+
+/* --- Search Controls --- */
+.search-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 30px;
+    padding: 15px;
+    background-color: #ecfdf5; /* Light Green Background */
+    border-radius: 8px;
+    border: 1px solid #a7f3d0;
+}
+
+.search-label {
+    font-weight: 600;
+    color: #065f46;
+}
+
+.radius-dropdown {
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    background-color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.radius-dropdown:focus {
+    border-color: #0d9488;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.2);
+}
+
+.search-button {
+    background-color: #0d9488; /* Teal */
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.search-button:hover:not(:disabled) {
+    background-color: #0f766e; /* Darker Teal */
+}
+
+.search-button:disabled {
+    background-color: #a7f3d0; /* Light green for disabled */
+    cursor: not-allowed;
+}
+
+/* Loading and Error States */
+.loading-spinner, .error-message, .no-results-message {
+    text-align: center;
+    padding: 30px;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.loading-spinner {
+    color: #0d9488;
+}
+
+.error-message {
+    background-color: #fee2e2; /* Red-100 */
+    color: #b91c1c; /* Red-700 */
+    border: 1px solid #fca5a5;
+}
+
+.no-results-message {
+    background-color: #eff6ff; /* Blue-100 */
+    color: #1d4ed8; /* Blue-700 */
+    border: 1px solid #bfdbfe;
+}
+
+.retry-button {
+    background-color: #ef4444;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.2s;
+}
+
+.retry-button:hover {
+    background-color: #dc2626;
+}
+
+/* Store List and Cards */
+.store-list {
+    margin-top: 20px;
+}
+
+.store-list h2 {
+    color: #1f2937;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+}
+
+.location-info {
+    font-size: 0.9rem;
+    color: #4b5563;
+    margin-bottom: 15px;
+    padding-left: 10px;
+    border-left: 3px solid #6ee7b7;
+}
+
+.store-card {
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: box-shadow 0.3s, transform 0.3s;
+}
+
+.store-card:hover {
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.store-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.store-name {
+    margin: 0;
+    color: #111827;
+    font-size: 1.25rem;
+}
+
+.store-distance {
+    background-color: #ecfdf5; /* Green-50 */
+    color: #059669; /* Green-600 */
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.store-address, .store-phone {
+    display: flex;
+    align-items: center;
+    color: #4b5563;
+    font-size: 1rem;
+}
+
+/* Styling for the inline SVG icons */
+.icon-small {
+    margin-right: 8px;
+    color: #6b7280;
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+}
+
+.call-button {
+    text-align: center;
+    background-color: #3b82f6; /* Blue-500 */
+    color: white;
+    padding: 10px 15px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    margin-top: 10px;
+    transition: background-color 0.2s;
+}
+
+.call-button:hover {
+    background-color: #2563eb; /* Blue-600 */
+}
+
+/* Spinner Animation */
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: #0d9488;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .medical-locator-container {
+        margin: 20px 10px;
+        padding: 15px;
+    }
+    
+    .search-controls {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .store-card {
+        padding: 15px;
+    }
+
+    .store-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+    .store-distance {
+        align-self: flex-end;
+    }
+}
