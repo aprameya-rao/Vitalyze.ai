@@ -4,6 +4,7 @@ venv/
 .venv/
 env/
 .env/
+gcp_credentials.json
 
 # Environment variables
 # Contains secrets and should not be versioned.
