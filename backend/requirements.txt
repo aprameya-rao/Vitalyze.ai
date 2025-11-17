@@ -13,3 +13,10 @@ python-multipart
 easyocr
 PyMuPDF
 pandas
+pytesseract
+pdf2image
+opencv-python-headless
+googlemaps
+google-api-python-client 
+google-auth
+google-cloud-aiplatform
