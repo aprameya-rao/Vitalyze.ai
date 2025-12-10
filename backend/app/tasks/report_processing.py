@@ -148,8 +148,7 @@ def analyze_healthcare_entities(text: str) -> Dict[str, Any]:
 
         # Prepare Request
         body = {
-            "documentContent": text,
-            "licensedVocabularies": ["SNOMEDCT_US", "ICD10CM", "RXNORM"]
+            "documentContent": text
         }
 
         logger.info("Sending text to Google Healthcare NLP API...")
