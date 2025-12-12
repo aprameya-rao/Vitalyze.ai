@@ -13,7 +13,6 @@ from app.tasks.celery_app import celery
 
 router = APIRouter()
 
-# --- Pydantic models for request bodies ---
 class DailyReminderCreate(BaseModel):
     medicine_name: str
     timings: List[Literal["morning", "afternoon", "evening"]]
@@ -23,7 +22,6 @@ class RefillReminderCreate(BaseModel):
     initial_quantity: int = Field(..., gt=0)
     frequency_per_day: int = Field(..., gt=0)
 
-# --- Time mapping for daily reminders ---
 TIMING_TO_CRONTAB = {
     "morning": crontab(hour=8, minute=0),
     "afternoon": crontab(hour=13, minute=0),

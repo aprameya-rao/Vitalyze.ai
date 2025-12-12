@@ -16,12 +16,9 @@ async def create_user(db: AsyncIOMotorDatabase, *, user_in: UserCreate) -> UserI
     """Create a new user, hashing the password before saving."""
     user_data = user_in.model_dump()
     
-    # --- THIS IS THE CRITICAL LOGIC ---
-    # 1. Hash the plain password
     hashed_password = get_password_hash(user_in.password)
     user_data["hashed_password"] = hashed_password
     
-    # 2. Delete the plain password so it's never stored
     del user_data["password"]
     
     result = await db["users"].insert_one(user_data)

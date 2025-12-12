@@ -4,7 +4,6 @@ import {
   Tooltip, Legend, ResponsiveContainer, AreaChart, Area
 } from "recharts";
 
-// Sample data — replace with your actual backend/API data
 const sampleData = [
   { date: "2025-11-01", bp: 120, sugar: 95 },
   { date: "2025-11-03", bp: 118, sugar: 97 },

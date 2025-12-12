@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 
 class MapsService:
     def __init__(self):
-        # Initialize the client only if the key is present
         if settings.GOOGLE_MAPS_API_KEY:
             self.gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
         else:
@@ -24,7 +23,6 @@ class MapsService:
             return []
 
         try:
-            # type='pharmacy' is standard for medical stores
             response = self.gmaps.places_nearby(
                 location=(lat, lon),
                 radius=radius,

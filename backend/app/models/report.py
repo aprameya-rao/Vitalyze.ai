@@ -4,17 +4,13 @@ from datetime import datetime
 from .user import PyObjectId
 
 class ReportBase(BaseModel):
-    # We store the raw filename for reference
     filename: str
     upload_date: datetime = Field(default_factory=datetime.now)
 
 class ReportCreate(ReportBase):
     user_id: PyObjectId
-    # The raw text extracted from PDF
     raw_text: str 
-    # The "Explain Like I'm 5" summary from Gemini
     simple_summary: str 
-    # The structured facts (e.g., {"Hemoglobin": "13.5"}) from Healthcare API
     structured_entities: List[Any] 
     file_storage_path: Optional[str] = None
 

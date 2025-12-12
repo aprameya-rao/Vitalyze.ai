@@ -3,7 +3,6 @@ from typing import Optional
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 
-# --- ADD THIS IMPORT ---
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.config import settings
@@ -11,7 +10,6 @@ from app.crud import crud_user
 from app.models.user import UserInDB
 
 
-# Setup for password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

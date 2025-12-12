@@ -6,7 +6,6 @@ function Home() {
   return (
     <div>
       <header className="header-section">
-        {/* ADDED 'centered-content' CLASS HERE */}
         <div className="centered-content"> 
           <h1>Welcome to Vitalyze</h1>
           <p>

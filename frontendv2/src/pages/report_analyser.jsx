@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-// ADDED the import for the consolidated stylesheet
 import "../App.css"; 
 
 function ReportAnalyser() {
@@ -22,7 +21,6 @@ function ReportAnalyser() {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      // NOTE: You must ensure 'pdfjs-dist' is installed (npm install pdfjs-dist)
       const pdfjsLib = await import("pdfjs-dist/build/pdf");
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;

@@ -6,7 +6,6 @@ from app.services.maps_service import maps_service
 
 router = APIRouter()
 
-# --- Response Models ---
 class Geometry(BaseModel):
     lat: float
     lng: float

@@ -4,7 +4,6 @@ from typing import Optional, List, Literal, Any
 from datetime import datetime
 from bson import ObjectId
 
-# --- UPDATED PyObjectId Class ---
 class PyObjectId(ObjectId):
     @classmethod
     def __get_pydantic_core_schema__(
@@ -34,7 +33,6 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     phone_number: Optional[str] = None
 
-# --- Reminder Sub-Models ---
 class DailyReminder(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     medicine_name: str
@@ -51,7 +49,6 @@ class RefillReminder(BaseModel):
     celery_task_id: str
     is_active: bool = True
 
-# --- Main User Models ---
 class UserBase(BaseModel):
     name: str
     phone_number: str = Field(..., pattern=r"^\+[1-9]\d{1,14}$")
@@ -59,8 +56,6 @@ class UserBase(BaseModel):
     gender: Optional[str] = None
 
 class UserCreate(UserBase):
-    # --- THIS IS THE UPDATED LINE ---
-    # We enforce a password length between 8 and 72 characters.
     password: str = Field(..., min_length=8, max_length=72)
 
 class UserInDB(UserBase):

@@ -7,7 +7,6 @@ from celery.result import AsyncResult
 from celery import chain
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-# --- Internal Imports ---
 from app.tasks.celery_app import celery
 from app.tasks.report_processing import task_extract_data_from_pdf, task_run_ai_analysis
 from app.models.user import UserInDB
@@ -15,8 +14,6 @@ from app.models.report import ReportInDB
 from app.api.v1.endpoints.auth import get_current_active_user
 from app.db.mongodb import get_database
 
-# --- Storage Service Import ---
-# If you haven't created app/services/storage_service.py yet, comment this line out.
 try:
     from app.services.storage_service import storage_service
 except ImportError:
@@ -25,7 +22,6 @@ except ImportError:
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Ensure temp directory exists
 UPLOAD_DIR = Path("temp_uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -43,31 +39,24 @@ def upload_report(
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Invalid file type. Only PDFs allowed.")
 
-    # Create a unique filename: user_id + original_name
     safe_filename = f"{current_user.id}_{file.filename}"
     file_path = UPLOAD_DIR / safe_filename
 
     try:
-        # 1. Save locally for Celery to access immediately
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
         gcs_path = None
         
-        # 2. Upload to Google Cloud Storage (If service is active)
         if storage_service:
             try:
-                # We reset the file cursor to the beginning before reading again
                 file.file.seek(0)
                 gcs_destination = f"users/{current_user.id}/{safe_filename}"
                 gcs_path = storage_service.upload_file(file.file, gcs_destination)
                 logger.info(f"File uploaded to GCS: {gcs_path}")
             except Exception as e:
                 logger.error(f"GCS Upload failed: {e}")
-                # We continue even if GCS fails, because the AI analysis is more important
         
-        # 3. Trigger the Celery Chain
-        # task_extract (returns text) -> task_analyze (processes text & saves to DB)
         workflow = chain(
             task_extract_data_from_pdf.s(str(file_path)),
             task_run_ai_analysis.s(
@@ -119,7 +108,6 @@ async def get_user_report_history(
     """
     reports = []
     
-    # Query: Find reports for this User ID, Sort by Upload Date (Newest first)
     cursor = db["reports"].find({"user_id": str(current_user.id)}).sort("upload_date", -1)
     
     async for doc in cursor:

@@ -6,7 +6,6 @@ from app.core.config import settings
 
 router = APIRouter()
 
-# Initialize Vertex AI (Reusable model)
 vertexai.init(project=settings.GCP_PROJECT_ID, location=settings.GCP_LOCATION)
 model = GenerativeModel("gemini-1.5-flash")
 
@@ -19,7 +18,6 @@ async def chat_with_medical_assistant(request: ChatRequest):
     Feature #4: AI Chatbot for medical queries.
     """
     try:
-        # We inject a system persona to keep the AI focused
         system_instruction = (
             "You are Vitalyze AI, a helpful and empathetic medical assistant. "
             "Answer the user's health questions in simple, easy-to-understand language. "

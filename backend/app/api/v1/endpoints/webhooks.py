@@ -17,7 +17,6 @@ def verify_webhook(
     challenge: int = Query(..., alias="hub.challenge"),
     token: str = Query(..., alias="hub.verify_token"),
 ):
-    # ... (code for verify_webhook) ...
     if mode == "subscribe" and token == WEBHOOK_VERIFY_TOKEN:
         return challenge
     else:
@@ -25,12 +24,10 @@ def verify_webhook(
 
 @router.post("/whatsapp")
 async def receive_webhook(request: Request):
-    # ... (code for receive_webhook) ...
     data = await request.json()
     logger.info(f"Received webhook data: {data}")
     return {"status": "ok"}
 
-# --- ENSURE THIS FUNCTION IS HERE AND SAVED ---
 @router.post("/test-whatsapp")
 def test_whatsapp_message(phone_number: str):
     """

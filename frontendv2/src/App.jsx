@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 
-// Import all page components
 import Home from "./pages/home.jsx";
 import SigninPage from "./pages/signin.jsx";
 import ReportAnalyser from "./pages/report_analyser.jsx"; 
@@ -22,12 +21,10 @@ const navLinks = [
 function NavBar({ user, setUser }) {
   const handleLogout = () => setUser(null);
 
-  // Determine which sign-in/out link to show
   const signinPath = "/signin";
 
   return (
     <nav className="navbar">
-      {/* 1. WRAP LOGO IN LINK TO REDIRECT TO HOME PAGE (/) */}
       <Link to="/" className="logo-link">
         <div className="logo">
           <img
@@ -46,7 +43,6 @@ function NavBar({ user, setUser }) {
           </Link>
         ))}
         
-        {/* Conditional Signin/Logout button */}
         {user ? (
           <button className="btn-logout nav-link" onClick={handleLogout}>
             Logout
@@ -66,17 +62,14 @@ function App() {
 
   return (
     <Router>
-      {/* NavBar now manages the logo click functionality */}
       <NavBar user={user} setUser={setUser} />
       <Routes>
         <Route path="/" element={<Home user={user} setUser={setUser} />} />
-        {/* Pass setUser to SigninPage so it can update the user state */}
         <Route path="/signin" element={<SigninPage setUser={setUser} />} />
         <Route path="/report-analyser" element={<ReportAnalyser />} />
         <Route path="/chatbot" element={<Chatbot />} />
         <Route path="/medical-locator" element={<MedicalLocator />} />
         <Route path="/trend" element={<Trend />} />
-        {/* Note: I removed the redundant Signin Link from navLinks array and made it conditional here. */}
       </Routes>
     </Router>
   );

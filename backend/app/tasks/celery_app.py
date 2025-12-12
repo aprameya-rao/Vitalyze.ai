@@ -34,7 +34,6 @@ celery.conf.update(
     broker_connection_retry_on_startup=True,
 )
 
-# --- RE-SCHEDULING LOGIC ---
 
 TIMING_TO_CRONTAB = {
     "morning": crontab(hour=8, minute=0),
@@ -48,12 +47,9 @@ async def restore_reminders_from_db():
     """
     logger.info("♻️  Attempting to restore reminders from MongoDB...")
     
-    # 1. Direct connection (bypass app dependency injection for this script)
     client = AsyncIOMotorClient(settings.MONGO_URI)
     db = client[settings.MONGO_DB_NAME]
     
-    # 2. Find users who have at least one daily reminder
-    #    The query checks if 'daily_reminders' exists and is not empty
     cursor = db["users"].find({"daily_reminders": {"$exists": True, "$not": {"$size": 0}}})
     
     count = 0
@@ -67,14 +63,12 @@ async def restore_reminders_from_db():
                 medicine_name = reminder["medicine_name"]
                 timings = reminder["timings"] # List like ["morning", "evening"]
                 
-                # Re-add tasks for each timing
                 from app.tasks.reminder_tasks import send_daily_reminder_task
                 
                 for timing in timings:
                     if timing in TIMING_TO_CRONTAB:
                         task_name = f"daily-reminder-{user_id}-{medicine_name}-{timing}"
                         
-                        # Add to Celery Beat Schedule
                         celery.add_periodic_task(
                             TIMING_TO_CRONTAB[timing],
                             send_daily_reminder_task.s(user_name, phone_number, medicine_name),
@@ -92,7 +86,6 @@ def setup_periodic_tasks(sender, **kwargs):
     It triggers the async restoration logic.
     """
     try:
-        # Create a new event loop for this thread to run the async DB call
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(restore_reminders_from_db())
