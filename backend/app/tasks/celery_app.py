@@ -1,10 +1,17 @@
 import ssl
+import asyncio
+import logging
 from celery import Celery
+from celery.schedules import crontab
+from motor.motor_asyncio import AsyncIOMotorClient
+
 from app.core.config import settings
 
-# Force SSL settings for Upstash
-# We use ssl.CERT_NONE to avoid "certificate verify failed" errors on local machines.
-# In production, you might want to switch this to ssl.CERT_REQUIRED.
+# Configure Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Force SSL settings for Upstash/Redis
 ssl_options = {
     'ssl_cert_reqs': ssl.CERT_NONE
 }
@@ -22,9 +29,73 @@ celery.conf.update(
     result_serializer="json",
     timezone="Asia/Kolkata",
     enable_utc=True,
-    # Critical SSL settings for Upstash
     broker_use_ssl=ssl_options,
     redis_backend_use_ssl=ssl_options,
-    # Connection retry settings
     broker_connection_retry_on_startup=True,
 )
+
+# --- RE-SCHEDULING LOGIC ---
+
+TIMING_TO_CRONTAB = {
+    "morning": crontab(hour=8, minute=0),
+    "afternoon": crontab(hour=13, minute=0),
+    "evening": crontab(hour=20, minute=0),
+}
+
+async def restore_reminders_from_db():
+    """
+    Async function to fetch all users and re-schedule their active daily reminders.
+    """
+    logger.info("♻️  Attempting to restore reminders from MongoDB...")
+    
+    # 1. Direct connection (bypass app dependency injection for this script)
+    client = AsyncIOMotorClient(settings.MONGO_URI)
+    db = client[settings.MONGO_DB_NAME]
+    
+    # 2. Find users who have at least one daily reminder
+    #    The query checks if 'daily_reminders' exists and is not empty
+    cursor = db["users"].find({"daily_reminders": {"$exists": True, "$not": {"$size": 0}}})
+    
+    count = 0
+    async for user in cursor:
+        user_id = str(user["_id"])
+        user_name = user.get("name", "User")
+        phone_number = user.get("phone_number")
+        
+        for reminder in user.get("daily_reminders", []):
+            if reminder.get("is_active", True):
+                medicine_name = reminder["medicine_name"]
+                timings = reminder["timings"] # List like ["morning", "evening"]
+                
+                # Re-add tasks for each timing
+                from app.tasks.reminder_tasks import send_daily_reminder_task
+                
+                for timing in timings:
+                    if timing in TIMING_TO_CRONTAB:
+                        task_name = f"daily-reminder-{user_id}-{medicine_name}-{timing}"
+                        
+                        # Add to Celery Beat Schedule
+                        celery.add_periodic_task(
+                            TIMING_TO_CRONTAB[timing],
+                            send_daily_reminder_task.s(user_name, phone_number, medicine_name),
+                            name=task_name
+                        )
+                        count += 1
+                        
+    logger.info(f"✅ Successfully restored {count} daily reminder tasks from Database.")
+    client.close()
+
+@celery.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    """
+    This signal runs when the Celery worker (or beat) starts up.
+    It triggers the async restoration logic.
+    """
+    try:
+        # Create a new event loop for this thread to run the async DB call
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(restore_reminders_from_db())
+        loop.close()
+    except Exception as e:
+        logger.error(f"❌ Failed to restore reminders on startup: {e}")

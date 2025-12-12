@@ -1,5 +1,3 @@
-# backend/app/tasks/report_processing.py
-
 import logging
 import re
 import os
@@ -7,8 +5,9 @@ import cv2
 import numpy as np
 import pytesseract
 import fitz  # PyMuPDF
+import asyncio
 from pdf2image import convert_from_path
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional
 
 # --- Google Cloud Imports ---
 from googleapiclient.discovery import build
@@ -16,8 +15,11 @@ from google.oauth2 import service_account
 import vertexai
 from vertexai.generative_models import GenerativeModel
 
+# --- Database & App Imports ---
+from motor.motor_asyncio import AsyncIOMotorClient
 from .celery_app import celery
 from app.core.config import settings
+from app.models.report import ReportCreate
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,9 +32,10 @@ custom_config = r'--psm 6'
 # 1. OCR & Text Extraction Helpers
 # ==========================================
 
-def pdf_to_cv2_objects(pdf_path: str, dpi: int = 600) -> List[np.ndarray]:
+def pdf_to_cv2_objects(pdf_path: str, dpi: int = 300) -> List[np.ndarray]:
     """
     Converts each page of a PDF file into a list of OpenCV image objects.
+    Used for scanned PDFs where direct text extraction fails.
     """
     cv2_images = []
     logger.info(f"Rendering PDF pages to images at {dpi} dpi...")
@@ -117,7 +120,6 @@ def parse_indicators(text: str) -> List[Dict[str, str]]:
         if match and len(match.groups()) >= 2:
             indicator = match.group(1).strip()
             value = match.group(2).strip()
-            # Basic validation to reduce noise
             if len(indicator) > 2 and len(value) > 0:
                 found_data.append({"Indicator": indicator, "Value": value})
     return found_data
@@ -132,7 +134,13 @@ def analyze_healthcare_entities(text: str) -> Dict[str, Any]:
     using Google Cloud Healthcare API.
     """
     try:
-        # Load Credentials
+        # --- NEW FIX: TRUNCATE TEXT ---
+        # The API limit is 20,000 code units. We cut it at 15,000 to be safe.
+        if len(text) > 19999:
+            logger.warning(f"Text too long ({len(text)} chars). Truncating to 15000 for Healthcare API.")
+            text = text[:19999]
+        # ------------------------------
+
         if not os.path.exists(settings.GOOGLE_APPLICATION_CREDENTIALS):
             raise FileNotFoundError(f"Credential file not found at {settings.GOOGLE_APPLICATION_CREDENTIALS}")
 
@@ -140,35 +148,24 @@ def analyze_healthcare_entities(text: str) -> Dict[str, Any]:
             settings.GOOGLE_APPLICATION_CREDENTIALS
         )
 
-        # Build Service
         service = build('healthcare', 'v1', credentials=creds)
-
-        # Define NLP Service Path
         nlp_service_path = f"projects/{settings.GCP_PROJECT_ID}/locations/{settings.GCP_LOCATION}/services/nlp"
 
-        # Prepare Request
-        body = {
-            "documentContent": text
-        }
-
+        body = {"documentContent": text}
         logger.info("Sending text to Google Healthcare NLP API...")
+        
         request = service.projects().locations().services().nlp().analyzeEntities(
-            nlpService=nlp_service_path, 
-            body=body
+            nlpService=nlp_service_path, body=body
         )
         response = request.execute()
 
-        # Parse Response
         simplified_entities = []
         for entity in response.get('entityMentions', []):
              simplified_entities.append({
                 "Description": entity.get('text', {}).get('content'),
                 "Type": entity.get('type'), 
                 "Confidence": f"{entity.get('confidence', 0):.2f}",
-                # Extract linked codes (like RxNorm IDs) if available
-                "LinkedCodes": [
-                    code.get('code') for code in entity.get('linkedEntities', [])
-                ]
+                # "LinkedCodes": [code.get('code') for code in entity.get('linkedEntities', [])]
             })
             
         logger.info(f"Google Healthcare API found {len(simplified_entities)} entities.")
@@ -176,8 +173,8 @@ def analyze_healthcare_entities(text: str) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Google Healthcare API failed: {e}")
-        # Fallback to basic regex parsing if API fails
-        return {"error": str(e), "fallback_data": parse_indicators(text)}
+        # Return empty list on failure so the process doesn't crash
+        return {"entities": [], "error": str(e)}
 
 # ==========================================
 # 3. Google Vertex AI (Gemini) Helper
@@ -185,11 +182,10 @@ def analyze_healthcare_entities(text: str) -> Dict[str, Any]:
 
 def generate_summary_with_gemini(entities: List[Dict], full_text: str) -> str:
     """
-    Step 2 of Analysis: Use GenAI (Gemini 1.5 Flash) to explain the report 
-    in simple English, based on the entities found.
+    Step 2 of Analysis: Use GenAI (Gemini) to explain the report 
+    in simple English.
     """
     try:
-        # Initialize Vertex AI with the same credentials
         creds = service_account.Credentials.from_service_account_file(
             settings.GOOGLE_APPLICATION_CREDENTIALS
         )
@@ -200,12 +196,8 @@ def generate_summary_with_gemini(entities: List[Dict], full_text: str) -> str:
             credentials=creds
         )
         
-        # Load the Gemini Model
-        # 'gemini-1.5-flash' is optimized for speed and cost-efficiency
-        model = GenerativeModel("gemini-1.5-flash")
+        model = GenerativeModel("gemini-2.5-pro")
         
-        # Construct the Prompt
-        # We provide both the raw text context and the extracted entities
         prompt = f"""
         You are a helpful medical assistant for a patient using Vitalyze.ai. 
         
@@ -215,64 +207,59 @@ def generate_summary_with_gemini(entities: List[Dict], full_text: str) -> str:
         Here are the key medical entities extracted from the report:
         {entities}
 
-        Please write a simple, comforting summary of this report for the patient. 
+        Please write a simple, comforting summary of this report for the common person. 
         Follow these rules:
         1. Explain specific values (like "High Blood Pressure" or "Hemoglobin: 12") in plain English.
         2. If medicines are listed, briefly mention what they are commonly used for.
         3. Do not use complex medical jargon without defining it simply.
         4. Keep the tone empathetic but professional.
-        5. IMPORTANT: End with a disclaimer that you are an AI and they should consult their doctor for medical advice.
+        5. IMPORTANT: End with a disclaimer that you are an AI and they should consult their doctor.
         """
 
         logger.info("Sending data to Gemini for summarization...")
         response = model.generate_content(prompt)
-        
         return response.text
 
     except Exception as e:
         logger.error(f"Gemini Analysis failed: {e}")
-        return "Unable to generate AI summary at this time. However, we have processed your report data successfully. Please consult your doctor."
+        return "Unable to generate AI summary at this time. Please consult your doctor."
 
 # ==========================================
-# 4. Celery Tasks
+# 4. Celery Tasks (The Pipeline)
 # ==========================================
 
 @celery.task(bind=True)
 def task_extract_data_from_pdf(self, file_path: str) -> Dict[str, Any]:
     """
-    Task 1: Extracts RAW TEXT from the PDF using the hybrid pipeline.
-    Returns a dict with the text and the basic regex-parsed data.
+    Task 1: Extracts RAW TEXT from the PDF.
     """
     logger.info(f"Starting data extraction for: {file_path}")
     try:
         extracted_text = extract_text_from_pdf(file_path)
-        regex_data = parse_indicators(extracted_text)
         
-        # Return both so the next task has full context
-        return {
-            "full_text": extracted_text,
-            "regex_extracted_data": regex_data
-        }
-    except Exception as e:
-        logger.error(f"Task 1 failed: {e}")
-        self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})
-        raise e
-    finally:
-        # Clean up the uploaded file to save space
+        # We clean up the file immediately after extraction to save space
         if os.path.exists(file_path):
             os.remove(file_path)
             logger.info(f"Removed temporary file: {file_path}")
+            
+        return {"full_text": extracted_text}
+        
+    except Exception as e:
+        logger.error(f"Task 1 failed: {e}")
+        # Even if extraction fails, we might want to clean up
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise e
+
 
 @celery.task(bind=True)
-def task_run_ai_analysis(self, extraction_result: Union[Dict, str]):
+def task_run_ai_analysis(self, extraction_result: Union[Dict, str], user_id: str, filename: str, gcs_path: Optional[str] = None):
     """
-    Task 2: Orchestrates the full analysis pipeline.
-    1. Healthcare API (Extraction) -> Gets the facts.
-    2. Vertex AI (Simplification) -> Explains the facts.
+    Task 2: Orchestrates Analysis & Saves to MongoDB.
     """
-    logger.info("Starting AI analysis Task...")
+    logger.info(f"Starting AI analysis for User: {user_id}")
     
-    # Handle input whether it's the full dict from Task 1 or just a string
+    # 1. Parse Input
     text_to_analyze = ""
     if isinstance(extraction_result, dict):
         text_to_analyze = extraction_result.get("full_text", "")
@@ -280,20 +267,56 @@ def task_run_ai_analysis(self, extraction_result: Union[Dict, str]):
         text_to_analyze = str(extraction_result)
 
     if not text_to_analyze:
-        return {"error": "No text provided for analysis"}
+        logger.error("No text provided for analysis.")
+        return {"error": "No text provided"}
 
-    # Step A: Extract Entities (Healthcare API)
+    # 2. AI Processing
+    # Step A: Healthcare API (Entities)
     extraction_data = analyze_healthcare_entities(text_to_analyze)
     entities = extraction_data.get("entities", [])
 
-    # Step B: Generate Simple Summary (Gemini)
+    # Step B: Gemini (Summary)
     simple_summary = generate_summary_with_gemini(entities, text_to_analyze)
     
-    # Final Result structure
-    final_result = {
+    # 3. Save to MongoDB (Async Logic inside Sync Task)
+    async def save_to_db():
+        try:
+            # Direct connection because dependency injection doesn't work inside Celery
+            client = AsyncIOMotorClient(settings.MONGO_URI)
+            db = client[settings.MONGO_DB_NAME]
+            
+            report_in = ReportCreate(
+                user_id=user_id,
+                filename=filename,
+                raw_text=text_to_analyze,
+                simple_summary=simple_summary,
+                structured_entities=entities,
+                file_storage_path=gcs_path
+            )
+            
+            # Convert Pydantic model to dict
+            report_data = report_in.model_dump(by_alias=True, exclude=["id"])
+            
+            await db["reports"].insert_one(report_data)
+            logger.info(f"✅ Report saved to DB for user {user_id}")
+            client.close()
+            return True
+        except Exception as db_err:
+            logger.error(f"❌ Database Save Failed: {db_err}")
+            return False
+
+    # Execute the async save function
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(save_to_db())
+        loop.close()
+    except Exception as e:
+        logger.error(f"Async Loop Failed: {e}")
+
+    # 4. Return result (for API polling)
+    return {
+        "status": "COMPLETED",
         "structured_entities": entities,
-        "simple_summary": simple_summary,
-        "raw_text_snippet": text_to_analyze[:200] # Just a snippet for reference
+        "simple_summary": simple_summary
     }
-    
-    return final_result

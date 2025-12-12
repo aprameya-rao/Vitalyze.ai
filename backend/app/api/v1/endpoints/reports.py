@@ -1,61 +1,128 @@
 import shutil
-from fastapi import APIRouter, UploadFile, File, HTTPException, status
-from pydantic import BaseModel
-from typing import List, Dict, Any
+import logging
+from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends
+from typing import List, Optional
 from pathlib import Path
 from celery.result import AsyncResult
-from celery import chain # <--- IMPORT THIS
+from celery import chain
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
+# --- Internal Imports ---
 from app.tasks.celery_app import celery
 from app.tasks.report_processing import task_extract_data_from_pdf, task_run_ai_analysis
+from app.models.user import UserInDB
+from app.models.report import ReportInDB
+from app.api.v1.endpoints.auth import get_current_active_user
+from app.db.mongodb import get_database
+
+# --- Storage Service Import ---
+# If you haven't created app/services/storage_service.py yet, comment this line out.
+try:
+    from app.services.storage_service import storage_service
+except ImportError:
+    storage_service = None
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
+# Ensure temp directory exists
 UPLOAD_DIR = Path("temp_uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-class AnalysisRequest(BaseModel):
-    data: Any # Changed to Any to accept string or dict
 
 @router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
-def upload_report(file: UploadFile = File(...)):
+def upload_report(
+    file: UploadFile = File(...),
+    current_user: UserInDB = Depends(get_current_active_user)
+):
+    """
+    1. Uploads PDF to Temp Storage.
+    2. (Optional) Uploads to Google Cloud Storage.
+    3. Triggers Celery Chain: Extract -> Analyze -> Save to DB.
+    """
     if file.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="Invalid file type.")
+        raise HTTPException(status_code=400, detail="Invalid file type. Only PDFs allowed.")
+
+    # Create a unique filename: user_id + original_name
+    safe_filename = f"{current_user.id}_{file.filename}"
+    file_path = UPLOAD_DIR / safe_filename
+
     try:
-        file_path = UPLOAD_DIR / file.filename
+        # 1. Save locally for Celery to access immediately
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # --- THE CHANGE: Create a Chain ---
-        # 1. Run Extraction (s() means signature/subtask)
-        # 2. Pass result to AI Analysis
+        gcs_path = None
+        
+        # 2. Upload to Google Cloud Storage (If service is active)
+        if storage_service:
+            try:
+                # We reset the file cursor to the beginning before reading again
+                file.file.seek(0)
+                gcs_destination = f"users/{current_user.id}/{safe_filename}"
+                gcs_path = storage_service.upload_file(file.file, gcs_destination)
+                logger.info(f"File uploaded to GCS: {gcs_path}")
+            except Exception as e:
+                logger.error(f"GCS Upload failed: {e}")
+                # We continue even if GCS fails, because the AI analysis is more important
+        
+        # 3. Trigger the Celery Chain
+        # task_extract (returns text) -> task_analyze (processes text & saves to DB)
         workflow = chain(
             task_extract_data_from_pdf.s(str(file_path)),
-            task_run_ai_analysis.s()
+            task_run_ai_analysis.s(
+                user_id=str(current_user.id), 
+                filename=file.filename,
+                gcs_path=gcs_path  # Pass the cloud path if it exists
+            )
         )
         
-        # Execute the chain
         task = workflow.apply_async()
         
         return {
             "task_id": task.id, 
-            "message": "Report uploaded. Extraction and AI Analysis started automatically."
+            "message": "Report uploaded successfully. Analysis started."
         }
+        
+    except Exception as e:
+        logger.error(f"Upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error during upload.")
     finally:
         file.file.close()
+
 
 @router.get("/status/{task_id}")
 def get_task_status(task_id: str):
     """
-    Check the status of the chain. 
-    Note: In a chain, the task_id returned above is for the *last* task in the chain.
+    Check the status of the background analysis chain.
     """
     task_result = AsyncResult(task_id, app=celery)
     
+    response = {"status": task_result.state}
+    
     if task_result.state == 'SUCCESS':
-        return {"status": "SUCCESS", "result": task_result.result}
+        response["result"] = task_result.result
     elif task_result.state == 'FAILURE':
-        return {"status": "FAILURE", "error": str(task_result.info)}
-    else:
-        # PENDING or PROCESSING
-        return {"status": task_result.state}
+        response["error"] = str(task_result.info)
+        
+    return response
+
+
+@router.get("/history", response_model=List[ReportInDB])
+async def get_user_report_history(
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Fetches all past analyzed reports for the logged-in user.
+    This data is used to generate the History Charts on the frontend.
+    """
+    reports = []
+    
+    # Query: Find reports for this User ID, Sort by Upload Date (Newest first)
+    cursor = db["reports"].find({"user_id": str(current_user.id)}).sort("upload_date", -1)
+    
+    async for doc in cursor:
+        reports.append(ReportInDB(**doc))
+        
+    return reports

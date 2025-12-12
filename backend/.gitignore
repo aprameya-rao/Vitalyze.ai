@@ -37,3 +37,7 @@ htmlcov/
 # Operating System specific files
 .DS_Store
 Thumbs.db   
+
+
+check_files.py
+/temp_uploads
