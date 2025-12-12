@@ -1,10 +1,13 @@
 import React from "react";
+import {Link} from 'react-router-dom';
+
 
 function Home() {
   return (
     <div>
       <header className="header-section">
-        <div>
+        {/* ADDED 'centered-content' CLASS HERE */}
+        <div className="centered-content"> 
           <h1>Welcome to Vitalyze</h1>
           <p>
             Upload your medical prescription and instantly find the nearest
@@ -13,7 +16,6 @@ function Home() {
             Smart, fast, and reliable healthcare at your fingertips.
           </p>
         </div>
-        <img src="/pharmacy.png" alt="Medical" className="header-img" />
       </header>
 
       <section className="features-section">

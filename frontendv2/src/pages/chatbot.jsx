@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import '../App.css'
 
 function Chatbot() {
   const [messages, setMessages] = useState([
@@ -10,6 +11,7 @@ function Chatbot() {
     const trimmed = input.trim();
     if (!trimmed) return;
 
+    // Simulate sending and receiving a reply
     const newMessages = [
       ...messages,
       { from: "user", text: trimmed },
@@ -24,27 +26,39 @@ function Chatbot() {
   };
 
   return (
-    <div className="chatbot-center-wrapper">
-      <div className="chatbot-container">
-        <div className="chatbot-messages">
-          {messages.map((m, idx) => (
-            <div
-              key={idx}
-              className={`chatbot-message ${m.from === "bot" ? "bot" : "user"}`}
-            >
-              {m.text}
-            </div>
-          ))}
-        </div>
-        <div className="chatbot-input-area">
-          <input
-            placeholder="Type your message..."
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-          <button onClick={handleSend}>Send</button>
-        </div>
+    // Note: Removed 'chatbot-center-wrapper' as the centering margin is usually handled by 'chatbot-container' max-width/margin-auto in app.css
+    <div className="chatbot-container">
+      {/* ADDED chat-header for better styling */}
+      <div className="chat-header">Vitalyze AI Chatbot</div> 
+      
+      <div className="chat-messages">
+        {messages.map((m, idx) => (
+          <div
+            key={idx}
+            // Mapped to .message, .user-message, and .ai-message from app.css
+            className={`message ${m.from === "bot" ? "ai-message" : "user-message"}`}
+          >
+            {m.text}
+          </div>
+        ))}
+      </div>
+      
+      <div className="chat-input-area">
+        <input
+          placeholder="Type your message..."
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          // Mapped to .chat-input and global .input-field styles
+          className="chat-input input-field" 
+        />
+        <button 
+          onClick={handleSend}
+          // Mapped to .send-button from app.css
+          className="send-button"
+        >
+          Send
+        </button>
       </div>
     </div>
   );

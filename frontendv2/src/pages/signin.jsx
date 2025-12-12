@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
-import "./signin.css";
+import "../App.css";
 
 function SigninPage({ setUser }) {
   const navigate = useNavigate();

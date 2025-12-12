@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import '../App.css'
 
 // Mock data for now
 const mockStores = [
@@ -20,7 +21,8 @@ const mockApi = {
 
 const MedicalLocator = () => {
   const [stores, setStores] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Initial loading is set to TRUE to ensure data fetch runs, but the UI block is removed.
+  const [loading, setLoading] = useState(true); 
   const [error, setError] = useState(null);
   const [location, setLocation] = useState(null);
   const [radius, setRadius] = useState(5);
@@ -76,21 +78,26 @@ const MedicalLocator = () => {
   };
 
   return (
-    <div className="medloc-container">
-      <h1 className="medloc-title">Find Nearby Pharmacies & Clinics</h1>
+    <div className="medical-locator-container">
+      {/* Mapped to .main-title and .subtitle from app.css */}
+      <h1 className="main-title">Medical Locator</h1>
+      <p className="subtitle">Find Nearby Pharmacies & Clinics</p>
 
-      {error && <div className="medloc-error">{error}</div>}
+      {/* Mapped to .error-message from app.css */}
+      {error && <div className="error-message">{error}</div>}
 
       {location && (
-        <div className="medloc-controls">
-          <div className="medloc-location">
+        <div className="search-controls">
+          {/* Mapped to .location-info from app.css */}
+          <div className="location-info">
             Current Location (Lat/Lng): {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
           </div>
+          {/* Mapped to .radius-dropdown (uses base input styles) */}
           <select
             value={radius}
             onChange={handleRadiusChange}
             disabled={loading}
-            className="medloc-radius-select"
+            className="radius-dropdown"
           >
             <option value={1}>Search within 1 km</option>
             <option value={3}>Search within 3 km</option>
@@ -100,42 +107,46 @@ const MedicalLocator = () => {
         </div>
       )}
 
-      {loading && (
-        <div className="medloc-loading">
-          <div className="spinner" role="status" aria-label="Loading stores...">
-            Fetching locations near you...
-          </div>
-        </div>
-      )}
+      {/* Removed the loading animation block as requested */}
 
       {!loading && !error && stores.length === 0 && location && (
-        <div className="medloc-card">
+        // Mapped to .no-results-message from app.css
+        <div className="no-results-message">
           <p>No pharmacies found within {radius} km. Try increasing the search radius.</p>
         </div>
       )}
 
       {!loading && !error && stores.length > 0 && (
-        <div className="medloc-card">
-          <h2 className="medloc-results-title">{stores.length} Results Found</h2>
-          <div className="medloc-store-list">
-            {stores.map((store) => (
-              <div key={store.id} className="medloc-store-item">
-                <div className="medloc-store-info">
-                  <div className="medloc-store-name">{store.name}</div>
-                  <div className="medloc-store-detail">Address: {store.address}</div>
-                  <div className="medloc-store-detail medloc-store-distance">
-                    Distance: {store.distance}
-                  </div>
-                </div>
-                <button
-                  className="medloc-call-btn"
-                  onClick={() => handleCall(store.phone)}
-                >
-                  Call ({store.phone})
-                </button>
+        <div className="store-list">
+          <h2 className="subtitle">{stores.length} Results Found</h2>
+          {stores.map((store) => (
+            // Mapped to .store-card from app.css
+            <div key={store.id} className="store-card">
+              <div className="store-header">
+                <div className="store-name">{store.name}</div>
+                {/* Distance uses .store-distance badge style */}
+                <div className="store-distance">{store.distance}</div>
               </div>
-            ))}
-          </div>
+              
+              {/* Address with Icon placeholder */}
+              <div className="store-address">
+                <span className="icon-small">📍</span> {store.address} 
+              </div>
+              
+              {/* Phone with Icon placeholder */}
+              <div className="store-phone">
+                <span className="icon-small">📞</span> {store.phone}
+              </div>
+              
+              {/* Button uses the defined futuristic call-button style */}
+              <button
+                className="call-button"
+                onClick={() => handleCall(store.phone)}
+              >
+                Call Store
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
