@@ -6,10 +6,8 @@ import sys
 
 print("--- Vitalyze.ai Connection Doctor ---")
 
-# 1. Test Redis (Upstash)
 print(f"\nTesting Redis Connection to: {settings.REDIS_URL.split('@')[-1]}...")
 try:
-    # SIMPLE CONNECTION: We let Redis handle SSL automatically from the 'rediss://' prefix
     r = redis.from_url(settings.REDIS_URL)
     r.ping()
     print("✅ Redis Connection SUCCESSFUL!")
@@ -17,7 +15,6 @@ except Exception as e:
     print("❌ Redis Connection FAILED.")
     print(f"   Error: {e}")
 
-# 2. Test MongoDB (No changes needed here since it passed)
 async def check_mongo():
     print(f"\nTesting MongoDB Connection to: {settings.MONGO_DB_NAME}...")
     try:

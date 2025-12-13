@@ -1,4 +1,3 @@
-# backend/app/services/whatsapp_service.py
 
 import requests
 import logging
@@ -24,6 +23,7 @@ def send_template_message(
         "Content-Type": "application/json",
     }
     
+    # 1. Basic Payload (Always required)
     payload = {
         "messaging_product": "whatsapp",
         "to": phone_number,
@@ -31,16 +31,18 @@ def send_template_message(
         "template": {
             "name": template_name,
             "language": {"code": "en_US"},
-            "components": [
-                {
-                    "type": "body",
-                    "parameters": [
-                        {"type": "text", "text": param} for param in template_params
-                    ],
-                }
-            ],
         },
     }
+
+    if template_params:
+        payload["template"]["components"] = [
+            {
+                "type": "body",
+                "parameters": [
+                    {"type": "text", "text": param} for param in template_params
+                ],
+            }
+        ]
 
     try:
         response = requests.post(api_url, headers=headers, json=payload)
@@ -49,5 +51,8 @@ def send_template_message(
         logger.info(f"WhatsApp message sent to {phone_number}. Response: {response.json()}")
         return True
     except requests.exceptions.RequestException as e:
+        # Log the response text to see the exact error from Meta
+        error_msg = response.text if response else str(e)
         logger.error(f"Failed to send WhatsApp message to {phone_number}: {e}")
+        logger.error(f"Meta API Error Details: {error_msg}")
         return False
