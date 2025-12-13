@@ -1,10 +1,4 @@
-/*
- * =======================================================================
- * GLOBAL STYLES & FONT
- * =======================================================================
- */
 
-/* Define the Futuristic Color Palette */
 :root {
   --color-dark-bg: #0d1117;     /* Very dark/black background (GitHub dark) */
   --color-card-bg: #161b22;     /* Slightly lighter surface for cards/forms */
@@ -15,7 +9,6 @@
   --color-border: #22272e;      /* Subtle border color */
 }
 
-/* General body/document styles */
 body {
   font-family: 'Space Mono', 'Consolas', monospace; 
   background: var(--color-dark-bg);
@@ -25,22 +18,16 @@ body {
   transition: background-color 0.5s ease;
 }
 
-/* Existing default React styles (Kept for compatibility) */
 .App-logo { /* ... */ }
 .App-header { /* ... */ }
 /* ... */
 
-/*
- * =======================================================================
- * GLOBAL BUTTON & INPUT STYLES
- * =======================================================================
- */
+
 
 .btn-primary, .btn-secondary, .call-button, .search-button, .retry-button {
   display: inline-block;
   padding: 0.7rem 1.5rem;
   font-size: 1.1rem;
-  /* REVERTED: Using a slight curve (4px) to match general UI elements */
   border-radius: 4px; 
   margin-right: 10px;
   cursor: pointer;
@@ -82,7 +69,6 @@ body {
     box-shadow: none;
 }
 
-/* Base styles for all form inputs */
 .input-field, .details-input, .otp-input, .chat-input, .radius-dropdown {
   width: 100%;
   padding: 12px;
@@ -102,11 +88,7 @@ body {
   box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.3);
 }
 
-/*
- * =======================================================================
- * HOME PAGE STYLES
- * =======================================================================
- */
+
 
 .navbar {
   display: flex;
@@ -118,7 +100,6 @@ body {
   border-bottom: 2px solid var(--color-primary);
 }
 
-/* Style for the React Router Link wrapper around the logo */
 .logo-link {
     text-decoration: none; /* Remove underline */
     color: inherit; /* Inherit text color from the parent (navbar) */
@@ -249,7 +230,6 @@ body {
   margin-top: 0;
 }
 
-/* Style for links in the footer */
 .footer-link {
     color: var(--color-primary);
     text-decoration: none;
@@ -261,11 +241,7 @@ body {
     text-decoration: underline;
 }
 
-/*
- * =======================================================================
- * SIGNIN / REGISTER PAGE STYLES
- * =======================================================================
- */
+
 
 .signin-container {
     max-width: 450px;
@@ -292,7 +268,6 @@ body {
     font-size: 1.4rem;
 }
 
-/* Overrides for react-phone-number-input package */
 .PhoneInput {
     margin-bottom: 15px;
 }
@@ -307,23 +282,17 @@ body {
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-/* Custom button alignments for SigninPage */
 .signin-container .btn-primary {
     margin: 10px 0;
     width: 100%;
 }
 
-/* Styles for register-specific inputs */
 .details-form {
     text-align: left;
 }
 
 
-/*
- * =======================================================================
- * CHATBOT PAGE STYLES
- * =======================================================================
- */
+
 
 .chatbot-container {
     display: flex;
@@ -409,11 +378,6 @@ body {
 }
 
 
-/*
- * =======================================================================
- * REPORT ANALYSER PAGE STYLES
- * =======================================================================
- */
 
 .report-analyser-container {
     max-width: 900px;
@@ -542,11 +506,7 @@ body {
 }
 
 
-/*
- * =======================================================================
- * MEDICAL LOCATOR PAGE STYLES
- * =======================================================================
- */
+
 
 .medical-locator-container {
     max-width: 950px;
@@ -611,7 +571,6 @@ body {
     border-left: 3px solid var(--color-primary);
 }
 
-/* --- UPDATED STORE CARD STYLES --- */
 .store-card {
     background-color: #1e2531;
     border: 1px solid #2d3748;
@@ -669,13 +628,10 @@ body {
     text-shadow: 0 0 5px rgba(88, 166, 255, 0.5); 
 }
 
-/* --- UPDATED CALL BUTTON STYLES (Match Global and Image Aesthetic) --- */
 .call-button {
-    /* Uses base button styles defined globally, which were set to rounded (4px) */
     width: 100%; 
     text-align: center;
     margin-top: 10px;
-    /* Use Primary color for main action, matching global .btn-primary */
     background-color: var(--color-primary);
     color: var(--color-dark-bg);
     border-radius: 4px; /* Soft corner matching the global buttons and image */
@@ -687,7 +643,6 @@ body {
     box-shadow: 0 0 15px var(--color-primary);
     transform: translateY(-2px);
 }
-/* --- END UPDATED CALL BUTTON STYLES --- */
 
 
 .spinner {
@@ -706,7 +661,6 @@ body {
     }
 }
 
-/* Responsive adjustments */
 @media (max-width: 600px) {
     .medical-locator-container {
         margin: 20px 10px;
@@ -734,11 +688,6 @@ body {
 }
 
 
-/*
- * =======================================================================
- * TRENDS PAGE STYLES
- * =======================================================================
- */
 
 .trend-page {
   padding: 2rem 2.5rem;
