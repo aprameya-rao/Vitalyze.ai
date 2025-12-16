@@ -1,52 +1,67 @@
 import React, { useState, useEffect } from "react";
-import '../App.css'
-
-// Mock data for now
-const mockStores = [
-  { id: 1, name: "City Center Pharmacy", address: "123 Main St, Anytown", distance: "2.1 km", phone: "555-0101" },
-  { id: 2, name: "Express Meds", address: "456 Oak Ave, Anytown", distance: "3.5 km", phone: "555-0102" },
-  { id: 3, name: "Vital Health Drugstore", address: "789 Pine Ln, Anytown", distance: "4.8 km", phone: "555-0103" },
-];
-
-const mockApi = {
-  get: (endpoint, config) => {
-    console.log(`MOCK API CALL: GET ${endpoint}`, config.params);
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve({ data: mockStores });
-      }, 1000);
-    });
-  }
-};
+import api from "../services/api"; // Import the API service
+import '../App.css';
 
 const MedicalLocator = () => {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true); 
   const [error, setError] = useState(null);
   const [location, setLocation] = useState(null);
-  const [radius, setRadius] = useState(5);
+  const [radius, setRadius] = useState(5000); // Default 5000 meters (5km)
+
+  // Helper: Calculate distance between two coords (Haversine formula)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return (R * c).toFixed(1); // Return distance in km with 1 decimal
+  };
+
+  const deg2rad = (deg) => {
+    return deg * (Math.PI / 180);
+  };
 
   const fetchStores = async (lat, lng, searchRadius) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await mockApi.get("/pharmacies/nearby", {
-        params: { latitude: lat, longitude: lng, radius: searchRadius },
+      // Backend expects radius in METERS
+      const response = await api.get("/maps/pharmacies", {
+        params: { lat: lat, lng: lng, radius: searchRadius },
       });
-      setStores(response.data);
+      
+      // Process result to add distance
+      const resultsWithDistance = response.data.map(store => ({
+        ...store,
+        distanceVal: calculateDistance(lat, lng, store.geometry.lat, store.geometry.lng)
+      }));
+
+      // Sort by distance
+      resultsWithDistance.sort((a, b) => a.distanceVal - b.distanceVal);
+      
+      setStores(resultsWithDistance);
     } catch (err) {
       console.error("API Fetch Error:", err);
-      setError("Could not fetch nearby locations. Please check your network or backend status.");
+      // Handle the specific error if API key is missing
+      if (err.response && err.response.status === 503) {
+        setError("Maps Service Unavailable (Server Config Error).");
+      } else {
+        setError("Could not fetch pharmacies. Ensure you are logged in.");
+      }
       setStores([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (location) {
-      fetchStores(location.lat, location.lng, radius);
-    } else {
+useEffect(() => {
+    // 1. Get User Location on Mount
+    if (!location) {
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -55,38 +70,56 @@ const MedicalLocator = () => {
           },
           (err) => {
             console.error("Geolocation Error:", err);
-            setError("Location access denied. Please enable location services to use this feature.");
+            // Show a more specific error based on the code
+            if (err.code === 1) {
+              setError("Location permission denied. Please allow location access in your browser.");
+            } else if (err.code === 2) {
+              setError("Location unavailable. Check your device's location services.");
+            } else if (err.code === 3) {
+              setError("Location request timed out. Please refresh or try again.");
+            } else {
+              setError("An unknown error occurred getting your location.");
+            }
             setLoading(false);
           },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+          // FIX IS HERE:
+          // enableHighAccuracy: false -> Uses Wi-Fi/IP (Faster, works indoors)
+          // timeout: 20000 -> Wait 20 seconds before failing
+          { enableHighAccuracy: false, timeout: 20000, maximumAge: 0 }
         );
       } else {
         setError("Geolocation is not supported by your browser.");
         setLoading(false);
       }
+    } else {
+      // 2. Fetch stores whenever location or radius changes
+      fetchStores(location.lat, location.lng, radius);
     }
   }, [location, radius]);
 
   const handleRadiusChange = (e) => {
-    const newRadius = parseInt(e.target.value, 10);
-    setRadius(newRadius);
+    setRadius(parseInt(e.target.value, 10));
   };
 
-  const handleCall = (phone) => {
-    window.location.href = `tel:${phone}`;
+  const handleViewMap = (placeId) => {
+    // Open Google Maps with the specific Place ID
+    const url = `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${placeId}`;
+    window.open(url, '_blank');
   };
 
   return (
     <div className="medical-locator-container">
       <h1 className="main-title">Medical Locator</h1>
-      <p className="subtitle">Find Nearby Pharmacies & Clinics</p>
+      <p className="subtitle">Find Trusted Pharmacies Near You</p>
 
+      {/* Show Error if exists */}
       {error && <div className="error-message">{error}</div>}
 
+      {/* Controls */}
       {location && (
         <div className="search-controls">
           <div className="location-info">
-            Current Location (Lat/Lng): {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+            Current Location: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
           </div>
           <select
             value={radius}
@@ -94,44 +127,47 @@ const MedicalLocator = () => {
             disabled={loading}
             className="radius-dropdown"
           >
-            <option value={1}>Search within 1 km</option>
-            <option value={3}>Search within 3 km</option>
-            <option value={5}>Search within 5 km (Default)</option>
-            <option value={10}>Search within 10 km</option>
+            <option value={1000}>Search within 1 km</option>
+            <option value={3000}>Search within 3 km</option>
+            <option value={5000}>Search within 5 km</option>
+            <option value={10000}>Search within 10 km</option>
           </select>
         </div>
       )}
 
+      {loading && <div className="loading-spinner">Locating Pharmacies...</div>}
 
+      {/* Results */}
       {!loading && !error && stores.length === 0 && location && (
         <div className="no-results-message">
-          <p>No pharmacies found within {radius} km. Try increasing the search radius.</p>
+          <p>No pharmacies found within {(radius/1000)} km.</p>
         </div>
       )}
 
       {!loading && !error && stores.length > 0 && (
         <div className="store-list">
           <h2 className="subtitle">{stores.length} Results Found</h2>
-          {stores.map((store) => (
-            <div key={store.id} className="store-card">
+          {stores.map((store, index) => (
+            <div key={store.place_id || index} className="store-card">
               <div className="store-header">
                 <div className="store-name">{store.name}</div>
-                <div className="store-distance">{store.distance}</div>
+                <div className="store-distance">{store.distanceVal} km</div>
               </div>
               
               <div className="store-address">
-                <span className="icon-small">📍</span> {store.address} 
+                <span className="icon-small">📍</span> {store.vicinity || "Address not available"}
               </div>
               
-              <div className="store-phone">
-                <span className="icon-small">📞</span> {store.phone}
+              <div className="store-rating">
+                <span className="icon-small">⭐</span> 
+                {store.rating ? `${store.rating} (${store.user_ratings_total || 0} reviews)` : "No ratings yet"}
               </div>
               
               <button
                 className="call-button"
-                onClick={() => handleCall(store.phone)}
+                onClick={() => handleViewMap(store.place_id)}
               >
-                Call Store
+                View on Map ↗
               </button>
             </div>
           ))}

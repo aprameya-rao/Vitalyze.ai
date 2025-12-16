@@ -1,118 +1,90 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
+import { authService } from "../services/api";
 import "../App.css";
 
 function SigninPage({ setUser }) {
   const navigate = useNavigate();
 
   const [phone, setPhone] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [verified, setVerified] = useState(false);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const [name, setName] = useState("");
-  const [gender, setGender] = useState("");
-  const [email, setEmail] = useState("");
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  const handleSendOtp = () => {
-    if (!phone || phone.length < 10) {
-      alert("Please enter a valid phone number.");
+    if (!phone || !password) {
+      setError("Please enter both phone number and password.");
+      setLoading(false);
       return;
     }
-    setOtpSent(true);
-    alert(`Mock OTP sent to ${phone}`);
-  };
 
-  const handleVerifyOtp = () => {
-    if (otp.length !== 6) {
-      alert("Please enter the 6-digit OTP.");
-      return;
+    try {
+      // Call Backend Login
+      const data = await authService.login(phone, password);
+      
+      // Store Token
+      localStorage.setItem("access_token", data.access_token);
+      
+      // Update App State (Simple version - implies user is logged in)
+      // Ideally, you would fetch user details here (GET /users/me), 
+      // but we'll just store basic info to update the Navbar for now.
+      setUser({ phone: phone }); 
+      
+      navigate("/");
+      
+    } catch (err) {
+      console.error("Login Error:", err);
+      const msg = err.response?.data?.detail || "Invalid Credentials. Please try again.";
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
-    setVerified(true);
-    alert("Phone number verified (mock)!");
-  };
-
-  const handleSubmitDetails = () => {
-    if (!name || !gender || !email) {
-      alert("Please fill all the fields.");
-      return;
-    }
-    setUser && setUser({ name, gender, email, phone });
-    navigate("/");
   };
 
   return (
     <div className="signin-container">
-      <h2>Sign in with your phone number</h2>
+      <h2>Sign In to Vitalyze</h2>
+      {error && <p className="error-msg">{error}</p>}
 
-      {!verified && (
-        <>
-          <PhoneInput
-            international
-            defaultCountry="IN"
-            value={phone}
-            onChange={setPhone}
-            placeholder="Enter phone number"
-          />
-          {!otpSent ? (
-            <button onClick={handleSendOtp} className="btn-primary" style={{ marginTop: 20 }}>
-              Send OTP
-            </button>
-          ) : (
-            <>
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="Enter OTP"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="otp-input"
-                style={{ marginTop: 20 }}
-              />
-              <button onClick={handleVerifyOtp} className="btn-primary" style={{ marginTop: 10 }}>
-                Verify OTP
-              </button>
-            </>
-          )}
-        </>
-      )}
+      <form onSubmit={handleLogin} className="details-form">
+        <label>Phone Number</label>
+        <PhoneInput
+          international
+          defaultCountry="IN"
+          value={phone}
+          onChange={setPhone}
+          className="phone-input-custom"
+        />
 
-      {verified && (
-        <div className="details-form">
-          <h3>Additional Details</h3>
-          <input
-            type="text"
-            placeholder="Name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="details-input"
-          />
-          <select
-            value={gender}
-            onChange={e => setGender(e.target.value)}
-            className="details-input"
-          >
-            <option value="" disabled>
-              Select Gender
-            </option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="details-input"
-          />
-          <button onClick={handleSubmitDetails} className="btn-primary" style={{ marginTop: 20 }}>
-            Submit Details
-          </button>
-        </div>
-      )}
+        <label style={{ marginTop: 15, display: 'block' }}>Password</label>
+        <input
+          type="password"
+          placeholder="Enter your password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="details-input"
+          required
+        />
+
+        <button 
+          type="submit" 
+          className="btn-primary" 
+          style={{ marginTop: 20 }}
+          disabled={loading}
+        >
+          {loading ? "Signing In..." : "Sign In"}
+        </button>
+      </form>
+
+      <p style={{ marginTop: 20 }}>
+        New User? <Link to="/register">Create an Account</Link>
+      </p>
     </div>
   );
 }

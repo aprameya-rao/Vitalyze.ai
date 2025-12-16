@@ -3,36 +3,37 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 
 import Home from "./pages/home.jsx";
 import SigninPage from "./pages/signin.jsx";
+import RegisterPage from "./pages/register.jsx"; // Ensure this is imported
 import ReportAnalyser from "./pages/report_analyser.jsx"; 
 import Chatbot from "./pages/chatbot.jsx";
 import MedicalLocator from "./pages/medical_locator.jsx";
 import Trend from "./pages/trend.jsx";
+import Reminders from "./pages/reminders.jsx"; // <-- IMPORT NEW PAGE
 
 import "./App.css";
 
 const navLinks = [
   { name: "Home", path: "/" },
-  { name: "Report Analyser", path: "/report-analyser" },
+  { name: "Analyser", path: "/report-analyser" },
+  { name: "Reminders", path: "/reminders" }, // <-- ADD TO MENU
   { name: "Chatbot", path: "/chatbot" },
-  { name: "Medical Locator", path: "/medical-locator" },
+  { name: "Locator", path: "/medical-locator" },
   { name: "Trend", path: "/trend" },
 ];
 
 function NavBar({ user, setUser }) {
-  const handleLogout = () => setUser(null);
-
-  const signinPath = "/signin";
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user_id"); // Clean up ID
+    setUser(null);
+  };
 
   return (
     <nav className="navbar">
       <Link to="/" className="logo-link">
         <div className="logo">
-          <img
-            src="/logo.png"
-            alt="Vitalyze Logo"
-            style={{ height: 40, marginRight: 10 }}
-          />
-          <span>Vitalyze</span>
+          {/* Ensure logo.png exists in /public or remove img tag */}
+          <span style={{ fontWeight: "bold", fontSize: "1.2rem" }}>Vitalyze.ai</span>
         </div>
       </Link>
 
@@ -48,7 +49,7 @@ function NavBar({ user, setUser }) {
             Logout
           </button>
         ) : (
-          <Link to={signinPath} className="nav-link">
+          <Link to="/signin" className="nav-link">
             Signin
           </Link>
         )}
@@ -58,18 +59,21 @@ function NavBar({ user, setUser }) {
 }
 
 function App() {
-  const [user, setUser] = useState(null);
+  // Check token on load to keep user logged in
+  const [user, setUser] = useState(localStorage.getItem("access_token") ? { loggedIn: true } : null);
 
   return (
     <Router>
       <NavBar user={user} setUser={setUser} />
       <Routes>
-        <Route path="/" element={<Home user={user} setUser={setUser} />} />
+        <Route path="/" element={<Home />} />
         <Route path="/signin" element={<SigninPage setUser={setUser} />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/report-analyser" element={<ReportAnalyser />} />
         <Route path="/chatbot" element={<Chatbot />} />
         <Route path="/medical-locator" element={<MedicalLocator />} />
         <Route path="/trend" element={<Trend />} />
+        <Route path="/reminders" element={<Reminders />} /> {/* <-- ADD ROUTE */}
       </Routes>
     </Router>
   );
