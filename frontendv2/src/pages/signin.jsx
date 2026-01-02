@@ -25,17 +25,13 @@ function SigninPage({ setUser }) {
     }
 
     try {
-      // Call Backend Login
       const data = await authService.login(phone, password);
-      
-      // Store Token
       localStorage.setItem("access_token", data.access_token);
       
-      // Update App State (Simple version - implies user is logged in)
-      // Ideally, you would fetch user details here (GET /users/me), 
-      // but we'll just store basic info to update the Navbar for now.
+      // Store user ID if provided in login response (optional improvement)
+      if (data.user_id) localStorage.setItem("user_id", data.user_id);
+
       setUser({ phone: phone }); 
-      
       navigate("/");
       
     } catch (err) {
@@ -82,8 +78,8 @@ function SigninPage({ setUser }) {
         </button>
       </form>
 
-      <p style={{ marginTop: 20 }}>
-        New User? <Link to="/register">Create an Account</Link>
+      <p style={{ marginTop: 25, color: '#8b949e', fontSize: '0.9rem' }}>
+        New User? <Link to="/register" className="text-link">Create an Account</Link>
       </p>
     </div>
   );

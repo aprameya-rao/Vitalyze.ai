@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import api from "../services/api";
 import "../App.css";
 
@@ -70,27 +70,27 @@ function Reminders() {
   };
 
   return (
-    <div className="reminders-container" style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
+    <div className="reminders-container">
       <h1>Medicine Reminders</h1>
       
       {/* Dev Helper: Input ID manually if missing from Login */}
       {!userId && (
-        <div style={{ background: "#fff3cd", padding: "10px", marginBottom: "20px", fontSize: "0.9rem" }}>
-          <strong>Dev Note:</strong> User ID not found. <br />
+        <div className="dev-note-container">
+          <div><strong>⚠ Dev Note:</strong> User ID not found.</div>
           <input 
+            className="dev-input"
             placeholder="Paste User ID here (from Register response)" 
             value={userId} 
             onChange={(e) => {
               setUserId(e.target.value);
               localStorage.setItem("user_id", e.target.value);
             }}
-            style={{ width: "100%", marginTop: "5px", padding: "5px" }}
           />
         </div>
       )}
 
       {/* Tabs */}
-      <div className="tabs" style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+      <div className="tabs-container">
         <button 
           className={activeTab === "daily" ? "btn-primary" : "btn-secondary"}
           onClick={() => setActiveTab("daily")}
@@ -105,12 +105,16 @@ function Reminders() {
         </button>
       </div>
 
-      {msg && <div className={`status-msg ${msg.includes("Error") || msg.includes("Failed") ? "error-msg" : "success-msg"}`} style={{ marginBottom: "15px", padding: "10px", background: msg.includes("✅") ? "#d4edda" : "#f8d7da", borderRadius: "5px" }}>{msg}</div>}
+      {msg && (
+        <div className={`status-msg ${msg.includes("Error") || msg.includes("Failed") ? "error-msg" : "success-msg"}`}>
+          {msg}
+        </div>
+      )}
 
       {/* Daily Form */}
       {activeTab === "daily" && (
         <form onSubmit={handleDailySubmit} className="details-form">
-          <label>Medicine Name</label>
+          <label className="search-label">Medicine Name</label>
           <input 
             className="details-input"
             value={dailyForm.medicine_name}
@@ -119,10 +123,10 @@ function Reminders() {
             placeholder="e.g., Paracetamol"
           />
           
-          <label>Select Timings</label>
-          <div style={{ display: "flex", gap: "15px", margin: "10px 0" }}>
+          <label className="search-label">Select Timings</label>
+          <div className="checkbox-group">
             {["morning", "afternoon", "evening"].map(time => (
-              <label key={time} style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+              <label key={time} className="checkbox-label">
                 <input 
                   type="checkbox" 
                   checked={dailyForm.timings.includes(time)}
@@ -133,7 +137,7 @@ function Reminders() {
             ))}
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" className="btn-primary" style={{width: '100%'}} disabled={loading}>
             {loading ? "Scheduling..." : "Set Daily Reminder"}
           </button>
         </form>
@@ -142,7 +146,7 @@ function Reminders() {
       {/* Refill Form */}
       {activeTab === "refill" && (
         <form onSubmit={handleRefillSubmit} className="details-form">
-          <label>Medicine Name</label>
+          <label className="search-label">Medicine Name</label>
           <input 
             className="details-input"
             value={refillForm.medicine_name}
@@ -150,9 +154,9 @@ function Reminders() {
             required
           />
 
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "15px" }}>
             <div style={{ flex: 1 }}>
-              <label>Current Quantity (Tablets)</label>
+              <label className="search-label">Current Quantity</label>
               <input 
                 type="number" 
                 className="details-input"
@@ -162,7 +166,7 @@ function Reminders() {
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label>Daily Frequency</label>
+              <label className="search-label">Daily Frequency</label>
               <input 
                 type="number" 
                 className="details-input"
@@ -173,7 +177,7 @@ function Reminders() {
             </div>
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" className="btn-primary" style={{width: '100%'}} disabled={loading}>
             {loading ? "Calculating..." : "Set Refill Reminder"}
           </button>
         </form>

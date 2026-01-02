@@ -19,18 +19,12 @@ function Trend() {
   const [error, setError] = useState("");
   const [selectedMetric, setSelectedMetric] = useState("bp");
 
-  // Helper: extract numeric values from report entities based on keywords
   const findValueInEntities = (entities, keywords) => {
     if (!entities) return null;
-    
-    // Look for a matching entity
     const match = entities.find(e => 
       keywords.some(k => e.Description.toLowerCase().includes(k))
     );
-
     if (match) {
-      // Try to extract the first number found in the text description
-      // This is a basic parser; for production, regex might need tuning based on specific report formats.
       const numMatch = match.Description.match(/(\d+(\.\d+)?)/);
       return numMatch ? parseFloat(numMatch[0]) : null;
     }
@@ -38,14 +32,9 @@ function Trend() {
   };
 
   const processReportsData = (reports) => {
-    // Transform backend reports into chart-friendly data
-    // Sort by date (oldest first)
     const sortedReports = reports.sort((a, b) => new Date(a.upload_date) - new Date(b.upload_date));
-
     return sortedReports.map(report => {
       const dateStr = new Date(report.upload_date).toLocaleDateString();
-      
-      // Attempt to find values in the structured entities
       return {
         date: dateStr,
         bp: findValueInEntities(report.structured_entities, metricOptions[0].keywords),
@@ -85,9 +74,11 @@ function Trend() {
       <h2 className="trend-title">Your Health Trends</h2>
       
       <div className="trend-controls">
-        <label htmlFor="metric">Track Indicator:</label>
+        <label htmlFor="metric" style={{ marginRight: '15px' }}>Track Indicator:</label>
+        {/* Applied the new class here */}
         <select
           id="metric"
+          className="trend-dropdown"
           value={selectedMetric}
           onChange={(e) => setSelectedMetric(e.target.value)}
         >
@@ -97,54 +88,59 @@ function Trend() {
         </select>
       </div>
 
-      {loading && <p>Loading your history...</p>}
+      {loading && <p className="loading-spinner">Loading your history...</p>}
       
-      {error && <p className="error-message">{error}</p>}
+      {error && <p className="error-message" style={{padding: '15px', borderRadius: '8px'}}>{error}</p>}
 
       {!loading && !error && data.length > 0 && (
         <>
           <div className="trend-chart-card">
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={data} margin={{ top: 30, right: 30, left: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis domain={['auto', 'auto']} />
+                {/* Changed Grid color to be subtle in dark mode */}
+                <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
+                <XAxis dataKey="date" stroke="#8b949e" />
+                <YAxis domain={['auto', 'auto']} stroke="#8b949e" />
+                
+                {/* Updated Tooltip to use CSS class instead of inline white styles */}
                 <Tooltip 
+                  cursor={{ stroke: '#00bcd4', strokeWidth: 1 }}
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       return (
-                        <div className="custom-tooltip" style={{ background: '#fff', padding: '10px', border: '1px solid #ccc' }}>
+                        <div className="custom-tooltip">
                           <p className="label">{`Date: ${label}`}</p>
                           <p className="intro">{`${currentMetricName}: ${payload[0].value}`}</p>
-                          <p className="desc" style={{fontSize:'0.8em', color:'#666'}}>{`Source: ${payload[0].payload.fileName}`}</p>
+                          <p className="desc">{`Source: ${payload[0].payload.fileName}`}</p>
                         </div>
                       );
                     }
                     return null;
                   }}
                 />
-                <Legend />
+                <Legend wrapperStyle={{ paddingTop: '20px' }}/>
                 <Line 
                   type="monotone" 
                   dataKey={selectedMetric} 
-                  stroke="#1890ff" 
+                  stroke="#00bcd4" /* Primary Cyan */
                   strokeWidth={3}
-                  activeDot={{ r: 8 }} 
-                  connectNulls={true} // Vital: connects points even if some reports miss this metric
+                  activeDot={{ r: 8, fill: '#00bcd4', stroke: '#fff' }} 
+                  connectNulls={true}
+                  dot={{ r: 4, fill: '#161b22', stroke: '#00bcd4', strokeWidth: 2 }}
                 />
-                <Area type="monotone" dataKey={selectedMetric} fill="#bae7ff" stroke="#1890ff" opacity={0.1} />
+                <Area type="monotone" dataKey={selectedMetric} fill="#00bcd4" stroke="#00bcd4" opacity={0.1} />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           <div className="trend-summary">
             <h3>Insight</h3>
-            <p>
-              Showing data extracted from <b>{data.length}</b> reports. 
+            <ul style={{ margin: 0 }}>
+              <li>Showing data extracted from <b>{data.length}</b> reports.</li>
               {data.filter(d => d[selectedMetric] !== null).length === 0 && 
-                ` Note: We couldn't find explicit values for "${currentMetricName}" in your reports yet.`
+                 <li>Note: We couldn't find explicit values for "{currentMetricName}" in your reports yet.</li>
               }
-            </p>
+            </ul>
           </div>
         </>
       )}
