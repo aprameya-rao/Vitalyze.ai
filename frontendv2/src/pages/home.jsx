@@ -43,9 +43,6 @@ function Home() {
 
       <section className="call-to-action">
         <h2>Start Your Health Journey Today!</h2>
-        <a href="/signin" className="btn-secondary">
-          Sign In
-        </a>
       </section>
 
       <footer className="footer">
