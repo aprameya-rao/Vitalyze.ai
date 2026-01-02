@@ -13,7 +13,7 @@ function RegisterPage() {
     gender: 'male',
     password: ''
   });
-  const [phone, setPhone] = useState(''); // PhoneInput handles state separately
+  const [phone, setPhone] = useState(''); 
   const [error, setError] = useState('');
 
   const handleChange = (e) => {
@@ -24,17 +24,15 @@ function RegisterPage() {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (!phone || !formData.password || !formData.name) {
       setError('Please fill in all required fields.');
       return;
     }
 
     try {
-      // Backend expects 'phone_number' and 'age' as integer
       const payload = {
         name: formData.name,
-        phone_number: phone, // PhoneInput returns format like "+919999999999"
+        phone_number: phone, 
         password: formData.password,
         age: parseInt(formData.age) || null,
         gender: formData.gender
@@ -47,7 +45,6 @@ function RegisterPage() {
       
     } catch (err) {
       console.error("Registration Error:", err);
-      // Try to extract backend error message
       const msg = err.response?.data?.detail || 'Registration failed. Try again.';
       setError(msg);
     }
@@ -89,7 +86,7 @@ function RegisterPage() {
           required 
         />
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '15px' }}>
           <div style={{ flex: 1 }}>
             <label>Age</label>
             <input 
@@ -120,8 +117,8 @@ function RegisterPage() {
         </button>
       </form>
 
-      <p style={{ marginTop: 20 }}>
-        Already have an account? <Link to="/signin">Sign In</Link>
+      <p style={{ marginTop: 25, color: '#8b949e', fontSize: '0.9rem' }}>
+        Already have an account? <Link to="/signin" className="text-link">Sign In</Link>
       </p>
     </div>
   );

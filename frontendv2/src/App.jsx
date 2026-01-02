@@ -3,19 +3,19 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 
 import Home from "./pages/home.jsx";
 import SigninPage from "./pages/signin.jsx";
-import RegisterPage from "./pages/register.jsx"; // Ensure this is imported
+import RegisterPage from "./pages/register.jsx";
 import ReportAnalyser from "./pages/report_analyser.jsx"; 
 import Chatbot from "./pages/chatbot.jsx";
 import MedicalLocator from "./pages/medical_locator.jsx";
 import Trend from "./pages/trend.jsx";
-import Reminders from "./pages/reminders.jsx"; // <-- IMPORT NEW PAGE
+import Reminders from "./pages/reminders.jsx"; 
 
 import "./App.css";
 
 const navLinks = [
   { name: "Home", path: "/" },
   { name: "Analyser", path: "/report-analyser" },
-  { name: "Reminders", path: "/reminders" }, // <-- ADD TO MENU
+  { name: "Reminders", path: "/reminders" },
   { name: "Chatbot", path: "/chatbot" },
   { name: "Locator", path: "/medical-locator" },
   { name: "Trend", path: "/trend" },
@@ -24,7 +24,7 @@ const navLinks = [
 function NavBar({ user, setUser }) {
   const handleLogout = () => {
     localStorage.removeItem("access_token");
-    localStorage.removeItem("user_id"); // Clean up ID
+    localStorage.removeItem("user_id"); 
     setUser(null);
   };
 
@@ -32,8 +32,9 @@ function NavBar({ user, setUser }) {
     <nav className="navbar">
       <Link to="/" className="logo-link">
         <div className="logo">
-          {/* Ensure logo.png exists in /public or remove img tag */}
-          <span style={{ fontWeight: "bold", fontSize: "1.2rem" }}>Vitalyze.ai</span>
+          <span style={{ fontWeight: "bold", fontSize: "1.5rem", letterSpacing: "1px" }}>
+            Vitalyze.ai
+          </span>
         </div>
       </Link>
 
@@ -45,7 +46,8 @@ function NavBar({ user, setUser }) {
         ))}
         
         {user ? (
-          <button className="btn-logout nav-link" onClick={handleLogout}>
+          /* Using 'nav-link' class makes it look exactly like the other links */
+          <button className="nav-link" onClick={handleLogout}>
             Logout
           </button>
         ) : (
@@ -59,7 +61,6 @@ function NavBar({ user, setUser }) {
 }
 
 function App() {
-  // Check token on load to keep user logged in
   const [user, setUser] = useState(localStorage.getItem("access_token") ? { loggedIn: true } : null);
 
   return (
@@ -73,7 +74,7 @@ function App() {
         <Route path="/chatbot" element={<Chatbot />} />
         <Route path="/medical-locator" element={<MedicalLocator />} />
         <Route path="/trend" element={<Trend />} />
-        <Route path="/reminders" element={<Reminders />} /> {/* <-- ADD ROUTE */}
+        <Route path="/reminders" element={<Reminders />} />
       </Routes>
     </Router>
   );
