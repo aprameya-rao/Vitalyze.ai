@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import api from "../services/api";
+import api from "../services/api"; // Ensure this api instance has the auth interceptor
 import "../App.css";
 
 function Reminders() {
   const [activeTab, setActiveTab] = useState("daily"); // 'daily' or 'refill'
-  const [userId, setUserId] = useState(localStorage.getItem("user_id") || "");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -31,19 +30,20 @@ function Reminders() {
 
   const handleDailySubmit = async (e) => {
     e.preventDefault();
-    if (!userId) {
-      setMsg("Error: Missing User ID. Please Register again to generate one.");
-      return;
-    }
     setLoading(true);
     setMsg("");
 
     try {
-      await api.post(`/reminders/daily/${userId}`, dailyForm);
+      // ✅ UPDATED: No user ID in the URL. 
+      // The backend identifies you by the "Authorization" header token.
+      await api.post("/reminders/daily", dailyForm);
+      
       setMsg("✅ Daily reminder set successfully!");
       setDailyForm({ medicine_name: "", timings: [] });
     } catch (err) {
-      setMsg("❌ Failed to set reminder: " + (err.response?.data?.detail || err.message));
+      console.error(err);
+      const errorDetail = err.response?.data?.detail || "Failed to set reminder. Are you logged in?";
+      setMsg("❌ " + errorDetail);
     } finally {
       setLoading(false);
     }
@@ -51,19 +51,23 @@ function Reminders() {
 
   const handleRefillSubmit = async (e) => {
     e.preventDefault();
-    if (!userId) {
-      setMsg("Error: Missing User ID.");
-      return;
-    }
     setLoading(true);
     setMsg("");
 
     try {
-      const response = await api.post(`/reminders/refill/${userId}`, refillForm);
-      setMsg(`✅ Refill reminder set! Next refill date: ${new Date(response.data.refill_date).toLocaleDateString()}`);
+      // ✅ UPDATED: No user ID in the URL.
+      const response = await api.post("/reminders/refill", refillForm);
+      
+      const dateStr = response.data.refill_date 
+        ? new Date(response.data.refill_date).toLocaleDateString() 
+        : "soon";
+
+      setMsg(`✅ Refill reminder set! Next refill date: ${dateStr}`);
       setRefillForm({ medicine_name: "", initial_quantity: 10, frequency_per_day: 1 });
     } catch (err) {
-      setMsg("❌ Failed to set refill reminder: " + (err.response?.data?.detail || err.message));
+      console.error(err);
+      const errorDetail = err.response?.data?.detail || "Failed to set refill reminder.";
+      setMsg("❌ " + errorDetail);
     } finally {
       setLoading(false);
     }
@@ -73,22 +77,6 @@ function Reminders() {
     <div className="reminders-container">
       <h1>Medicine Reminders</h1>
       
-      {/* Dev Helper: Input ID manually if missing from Login */}
-      {!userId && (
-        <div className="dev-note-container">
-          <div><strong>⚠ Dev Note:</strong> User ID not found.</div>
-          <input 
-            className="dev-input"
-            placeholder="Paste User ID here (from Register response)" 
-            value={userId} 
-            onChange={(e) => {
-              setUserId(e.target.value);
-              localStorage.setItem("user_id", e.target.value);
-            }}
-          />
-        </div>
-      )}
-
       {/* Tabs */}
       <div className="tabs-container">
         <button 
@@ -106,7 +94,7 @@ function Reminders() {
       </div>
 
       {msg && (
-        <div className={`status-msg ${msg.includes("Error") || msg.includes("Failed") ? "error-msg" : "success-msg"}`}>
+        <div className={`status-msg ${msg.includes("❌") ? "error-msg" : "success-msg"}`}>
           {msg}
         </div>
       )}
