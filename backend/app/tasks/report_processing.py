@@ -1,6 +1,7 @@
 import logging
 import re
 import os
+import json  # Needed for parsing Gemini's JSON output
 import cv2
 import numpy as np
 import pytesseract
@@ -9,7 +10,6 @@ import asyncio
 from pdf2image import convert_from_path
 from typing import List, Dict, Any, Union, Optional
 
-from googleapiclient.discovery import build
 from google.oauth2 import service_account
 import vertexai
 from vertexai.generative_models import GenerativeModel
@@ -24,12 +24,9 @@ logger = logging.getLogger(__name__)
 
 custom_config = r'--psm 6'
 
+# --- PDF & Image Processing Utilities (Unchanged) ---
 
 def pdf_to_cv2_objects(pdf_path: str, dpi: int = 300) -> List[np.ndarray]:
-    """
-    Converts each page of a PDF file into a list of OpenCV image objects.
-    Used for scanned PDFs where direct text extraction fails.
-    """
     cv2_images = []
     logger.info(f"Rendering PDF pages to images at {dpi} dpi...")
     try:
@@ -38,33 +35,21 @@ def pdf_to_cv2_objects(pdf_path: str, dpi: int = 300) -> List[np.ndarray]:
             page_array = np.array(page_image)
             cv2_image = cv2.cvtColor(page_array, cv2.COLOR_RGB2BGR)
             cv2_images.append(cv2_image)
-        logger.info(f"Converted {len(pages)} pages to cv2 objects.")
     except Exception as e:
         logger.error(f"Error converting PDF to images: {e}")
         raise e
     return cv2_images
 
 def preprocessor(cv2_image: np.ndarray) -> np.ndarray:
-    """
-    Applies standard OpenCV techniques to clean image for Tesseract.
-    """
     gray = cv2.cvtColor(cv2_image, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
     return thresh
 
 def extract_text(processed_image: np.ndarray) -> str:
-    """
-    Runs Tesseract OCR on the preprocessed image.
-    """
     return pytesseract.image_to_string(processed_image, lang="eng", config=custom_config)
 
 def extract_text_from_pdf(file_path: str) -> str:
-    """
-    Hybrid extraction:
-    1. Tries direct text extraction (PyMuPDF).
-    2. If text is insufficient (scanned PDF), falls back to OCR.
-    """
     text = ""
     try:
         logger.info(f"Attempting direct text extraction for {file_path}...")
@@ -75,9 +60,6 @@ def extract_text_from_pdf(file_path: str) -> str:
         if len(text.strip()) < 50:
             logger.info("Text too short. Likely scanned. Switching to OCR.")
             raise ValueError("Likely Scanned PDF")
-        
-        logger.info("Direct text extraction successful.")
-
     except Exception:
         logger.info(f"Running Tesseract OCR pipeline on {file_path}")
         full_ocr_text = []
@@ -87,81 +69,74 @@ def extract_text_from_pdf(file_path: str) -> str:
                 processed_image = preprocessor(image)
                 page_text = extract_text(processed_image)
                 full_ocr_text.append(page_text)
-                logger.info(f"Processed page {i+1} with Tesseract.")
             text = "\n".join(full_ocr_text)
         except Exception as e:
             logger.error(f"OCR extraction failed: {e}")
             raise e
-            
     return text
 
-def parse_indicators(text: str) -> List[Dict[str, str]]:
-    """
-    Simple regex parser to find standard 'Indicator: Value' patterns.
-    Acts as a fallback or quick-view data source.
-    """
-    pattern = re.compile(r"([A-Za-z\s\(\)/-]+?)\s+([\d\.-]+)\s*([A-Za-z/dL%]+)?")
-    found_data = []
-    for line in text.split('\n'):
-        match = pattern.search(line)
-        if match and len(match.groups()) >= 2:
-            indicator = match.group(1).strip()
-            value = match.group(2).strip()
-            if len(indicator) > 2 and len(value) > 0:
-                found_data.append({"Indicator": indicator, "Value": value})
-    return found_data
 
+# --- NEW: Gemini Extraction Function ---
 
-def analyze_healthcare_entities(text: str) -> Dict[str, Any]:
+def extract_vitals_with_gemini(full_text: str) -> List[Dict[str, str]]:
     """
-    Step 1 of Analysis: Extract structured entities (Medicines, Conditions)
-    using Google Cloud Healthcare API.
+    Uses Vertex AI (Gemini) to extract structured key-value pairs.
     """
     try:
-        # The API limit is 20,000 code units.
-        if len(text) > 19999:
-            logger.warning(f"Text too long ({len(text)} chars). Truncating to 19999 for Healthcare API.")
-            text = text[:19999]
-
-        if not os.path.exists(settings.GOOGLE_APPLICATION_CREDENTIALS):
-            raise FileNotFoundError(f"Credential file not found at {settings.GOOGLE_APPLICATION_CREDENTIALS}")
-
         creds = service_account.Credentials.from_service_account_file(
             settings.GOOGLE_APPLICATION_CREDENTIALS
         )
-
-        service = build('healthcare', 'v1', credentials=creds)
-        nlp_service_path = f"projects/{settings.GCP_PROJECT_ID}/locations/{settings.GCP_LOCATION}/services/nlp"
-
-        body = {"documentContent": text}
-        logger.info("Sending text to Google Healthcare NLP API...")
         
-        request = service.projects().locations().services().nlp().analyzeEntities(
-            nlpService=nlp_service_path, body=body
+        vertexai.init(
+            project=settings.GCP_PROJECT_ID, 
+            location=settings.GCP_LOCATION, 
+            credentials=creds
         )
-        response = request.execute()
+        
+        model = GenerativeModel("gemini-2.5-pro")
+        
+        # We ask Gemini to output strict JSON
+        prompt = f"""
+        You are an expert medical data extractor. 
+        Analyze the following medical report text and extract the medical test results.
 
-        simplified_entities = []
-        for entity in response.get('entityMentions', []):
-             simplified_entities.append({
-                "Description": entity.get('text', {}).get('content'),
-                "Type": entity.get('type'), 
-                "Confidence": f"{entity.get('confidence', 0):.2f}",
-            })
-            
-        logger.info(f"Google Healthcare API found {len(simplified_entities)} entities.")
-        return {"entities": simplified_entities}
+        REPORT TEXT:
+        "{full_text[:5000]}"
+
+        INSTRUCTIONS:
+        1. Identify specific medical tests and their measured values.
+        2. Combine the numeric value and the unit into the "Value" field (e.g., "14.2 g/dL").
+        3. IGNORE reference ranges, dates, patient IDs, page numbers, QR codes, and scanner metadata.
+        4. IGNORE normal/abnormal flags (like "High", "Low").
+        5. Return ONLY a valid JSON array of objects.
+        6. Each object must have exactly two keys: "Indicator" (the test name) and "Value" (the result).
+
+        Example Output Format:
+        [
+            {{"Indicator": "Hemoglobin", "Value": "12.5 g/dL"}},
+            {{"Indicator": "RBC Count", "Value": "4.5 mill/mm3"}}
+        ]
+        """
+
+        logger.info("Asking Gemini to extract structured vitals...")
+        response = model.generate_content(prompt)
+        
+        # Clean the response to ensure it's valid JSON (Gemini sometimes adds ```json markers)
+        raw_response = response.text.strip()
+        clean_json = raw_response.replace("```json", "").replace("```", "").strip()
+        
+        extracted_data = json.loads(clean_json)
+        return extracted_data
 
     except Exception as e:
-        logger.error(f"Google Healthcare API failed: {e}")
-        # Return empty list on failure so the process doesn't crash
-        return {"entities": [], "error": str(e)}
+        logger.error(f"Gemini Extraction failed: {e}")
+        # Return empty list so the app doesn't crash
+        return []
 
 
 def generate_summary_with_gemini(entities: List[Dict], full_text: str) -> str:
     """
-    Step 2 of Analysis: Use GenAI (Gemini) to explain the report 
-    in simple English.
+    Summarization Step (Uses the same model configuration)
     """
     try:
         creds = service_account.Credentials.from_service_account_file(
@@ -177,49 +152,40 @@ def generate_summary_with_gemini(entities: List[Dict], full_text: str) -> str:
         model = GenerativeModel("gemini-2.5-pro")
         
         prompt = f"""
-        You are a helpful medical assistant for a patient using Vitalyze.ai. 
+        You are a helpful medical assistant using Vitalyze.ai. 
         
-        Here is the raw text from their medical report:
-        "{full_text[:3000]}..." (truncated if too long)
+        Based on these extracted test results:
+        {json.dumps(entities)}
 
-        Here are the key medical entities extracted from the report:
-        {entities}
+        And this raw report text context:
+        "{full_text[:2000]}..."
 
-        Please write a simple, comforting summary of this report for the common person. 
-        Follow these rules:
-        1. Explain specific values (like "High Blood Pressure" or "Hemoglobin: 12") in plain English.
-        2. If medicines are listed, briefly mention what they are commonly used for.
-        3. Do not use complex medical jargon without defining it simply.
-        4. Keep the tone empathetic but professional.
-        5. IMPORTANT: End with a disclaimer that you are an AI and they should consult their doctor.
+        Write a simple, comforting summary for the patient.
+        1. Mention the key findings in plain English.
+        2. Briefly explain what the tests are for (e.g., "Hemoglobin carries oxygen").
+        3. Do not use complex jargon.
+        4. End with a disclaimer that you are an AI.
         """
 
-        logger.info("Sending data to Gemini for summarization...")
         response = model.generate_content(prompt)
         return response.text
 
     except Exception as e:
-        logger.error(f"Gemini Analysis failed: {e}")
-        return "Unable to generate AI summary at this time. Please consult your doctor."
+        logger.error(f"Gemini Summary failed: {e}")
+        return "Unable to generate AI summary at this time."
 
+
+# --- Celery Tasks ---
 
 @celery.task(bind=True)
 def task_extract_data_from_pdf(self, file_path: str) -> Dict[str, Any]:
-    """
-    Task 1: Extracts RAW TEXT from the PDF.
-    """
     logger.info(f"Starting data extraction for: {file_path}")
     try:
         extracted_text = extract_text_from_pdf(file_path)
-        
         if os.path.exists(file_path):
             os.remove(file_path)
-            logger.info(f"Removed temporary file: {file_path}")
-            
         return {"full_text": extracted_text}
-        
     except Exception as e:
-        logger.error(f"Task 1 failed: {e}")
         if os.path.exists(file_path):
             os.remove(file_path)
         raise e
@@ -227,9 +193,6 @@ def task_extract_data_from_pdf(self, file_path: str) -> Dict[str, Any]:
 
 @celery.task(bind=True)
 def task_run_ai_analysis(self, extraction_result: Union[Dict, str], user_id: str, filename: str, gcs_path: Optional[str] = None):
-    """
-    Task 2: Orchestrates Analysis & Saves to MongoDB.
-    """
     logger.info(f"Starting AI analysis for User: {user_id}")
     
     text_to_analyze = ""
@@ -239,14 +202,16 @@ def task_run_ai_analysis(self, extraction_result: Union[Dict, str], user_id: str
         text_to_analyze = str(extraction_result)
 
     if not text_to_analyze:
-        logger.error("No text provided for analysis.")
         return {"error": "No text provided"}
 
-    extraction_data = analyze_healthcare_entities(text_to_analyze)
-    entities = extraction_data.get("entities", [])
-
-    simple_summary = generate_summary_with_gemini(entities, text_to_analyze)
+    # --- STEP 1: Extract Clean Data using Gemini ---
+    # We replaced the Regex/Google NLP with this single intelligent call.
+    vital_indicators = extract_vitals_with_gemini(text_to_analyze)
     
+    # --- STEP 2: Generate Summary based on that data ---
+    simple_summary = generate_summary_with_gemini(vital_indicators, text_to_analyze)
+    
+    # 3. Save to DB
     async def save_to_db():
         try:
             client = AsyncIOMotorClient(settings.MONGO_URI)
@@ -257,18 +222,16 @@ def task_run_ai_analysis(self, extraction_result: Union[Dict, str], user_id: str
                 filename=filename,
                 raw_text=text_to_analyze,
                 simple_summary=simple_summary,
-                structured_entities=entities,
+                # Store the clean indicators as the 'structured_entities' so the frontend works automatically
+                structured_entities=vital_indicators,
                 file_storage_path=gcs_path
             )
             
-            report_data = report_in.model_dump(by_alias=True, exclude=["id"])
-            
-            await db["reports"].insert_one(report_data)
-            logger.info(f"✅ Report saved to DB for user {user_id}")
+            await db["reports"].insert_one(report_in.model_dump(by_alias=True, exclude=["id"]))
             client.close()
             return True
         except Exception as db_err:
-            logger.error(f"❌ Database Save Failed: {db_err}")
+            logger.error(f"Database Save Failed: {db_err}")
             return False
 
     try:
@@ -279,8 +242,11 @@ def task_run_ai_analysis(self, extraction_result: Union[Dict, str], user_id: str
     except Exception as e:
         logger.error(f"Async Loop Failed: {e}")
 
+    # Return structure matching what your frontend expects
     return {
         "status": "COMPLETED",
-        "structured_entities": entities,
+        # We populate both keys with the clean data to ensure frontend compatibility
+        "structured_entities": vital_indicators,
+        "vital_indicators": vital_indicators,
         "simple_summary": simple_summary
     }

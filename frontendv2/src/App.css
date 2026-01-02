@@ -1053,3 +1053,173 @@ button.nav-link {
 .text-link:hover::after {
   width: 100%;
 }
+/* --- Report Analyser Results Styling --- */
+
+/* AI Summary Card - Dark Theme */
+.summary-card {
+  background-color: #1e2531;
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  padding: 25px;
+  margin-top: 30px;
+  box-shadow: 0 0 15px rgba(0, 188, 212, 0.1);
+}
+
+.summary-card h2 {
+  color: var(--color-primary); /* Cyan heading */
+  font-size: 1.5rem;
+  margin-top: 0;
+  margin-bottom: 20px;
+  border-bottom: 1px dashed var(--color-border);
+  padding-bottom: 10px;
+}
+
+/* Markdown Content Styling */
+.summary-text {
+  color: var(--color-text);
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+.summary-text strong {
+  color: var(--color-secondary); /* Neon blue for bold text */
+}
+
+.summary-text h1, .summary-text h2, .summary-text h3 {
+  color: #fff;
+  margin-top: 20px;
+}
+
+.summary-text ul {
+  padding-left: 20px;
+}
+
+.summary-text li {
+  margin-bottom: 8px;
+}
+
+/* --- Report Analyser Table Styling --- */
+
+.entities-card {
+  margin-top: 40px;
+  background-color: #1e2531; /* Card background */
+  border: 1px solid #2d3748;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 0 20px rgba(0, 188, 212, 0.1);
+}
+
+.entities-card h3 {
+  color: var(--color-primary); /* Cyan heading */
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+}
+
+.entities-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #161b22; /* Slightly darker inner bg */
+  font-family: 'Space Mono', monospace;
+}
+
+.entities-table thead th {
+  background-color: #0d1117; /* Darkest header bg */
+  color: var(--color-primary); /* Cyan text */
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 18px 15px;
+  text-align: left;
+  border-bottom: 2px solid #30363d;
+  font-size: 0.9rem;
+}
+
+.entities-table tbody td {
+  padding: 15px;
+  border-bottom: 1px solid #30363d;
+  color: var(--color-text);
+  vertical-align: middle;
+  font-size: 0.95rem;
+}
+
+.entities-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.entities-table tbody tr:hover {
+  background-color: rgba(0, 188, 212, 0.08); /* Subtle Cyan hover tint */
+}
+
+/* Specific styling for the "Value" numbers to make them pop */
+.value-cell {
+    color: var(--color-secondary) !important; /* Neon Blue/Cyan pop */
+    font-weight: 700;
+    font-size: 1.1rem;
+    font-family: 'Consolas', monospace; /* Slightly different mono font for numbers */
+}
+
+/* Status Messages */
+.status-message {
+  background-color: rgba(0, 188, 212, 0.1);
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.status-message h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.2rem;
+}
+/* --- Chatbot Markdown Styling --- */
+
+/* Reset margins for markdown elements inside chat bubbles */
+.message p {
+  margin: 0 0 10px 0;
+}
+
+.message p:last-child {
+  margin-bottom: 0;
+}
+
+.message ul, .message ol {
+  margin: 5px 0 10px 0;
+  padding-left: 20px;
+}
+
+.message li {
+  margin-bottom: 5px;
+}
+
+.message strong {
+  color: var(--color-secondary); /* Neon blue for emphasis */
+  font-weight: 700;
+}
+
+/* Ensure links in chat are visible */
+.message a {
+  color: var(--color-secondary);
+  text-decoration: underline;
+}
+
+/* Headings in chat (rare, but good to handle) */
+.message h1, .message h2, .message h3 {
+  font-size: 1.1rem;
+  margin: 10px 0 5px 0;
+  color: var(--color-heading);
+}
+
+/* User message specific overrides (keep text dark for contrast if needed) */
+.user-message strong {
+  color: #000; /* Darker bold for the user bubble if background is Cyan */
+}
