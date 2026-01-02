@@ -1,33 +1,43 @@
-# backend/manual_trigger.py
 import sys
 import os
 
-# Add project root to python path so we can import 'app'
+# 1. SETUP PATH
 sys.path.append(os.getcwd())
 
+# 2. IMPORT THE TASK
+# Make sure this path matches where your task is located
 from app.tasks.reminder_tasks import send_daily_reminder_task
-from app.services.whatsapp_service import send_template_message
 
-def trigger_hello_world_test():
-    # REPLACE WITH YOUR VERIFIED SANDBOX NUMBER
-    # Format: Country Code + Number (e.g., 919019267983)
-    target_phone = "919019267983" 
+def trigger_celery_task_manual():
+    print("--- ⚡ Trigger Celery Task Manually ---")
     
-    print(f"🚀 Sending 'hello_world' to {target_phone}...")
+    # 3. GET INPUTS
+    target_phone = input("Enter target phone (e.g., 919876543210): ").strip()
+    user_name = input("Enter Patient Name: ").strip()
+    medicine_name = input("Enter Medicine Name: ").strip()
 
-    # --- THE SIMPLIFIED PAYLOAD ---
-    template_name = "hello_world"
-    params = [] # "hello_world" accepts NO parameters
+    if not target_phone or not user_name:
+        print("❌ Error: Phone and Name are required.")
+        return
+
+    print(f"\n🚀 Queuing task for {user_name}...")
+
+    # 4. TRIGGER THE TASK
+    # We use .delay() to send this to the Celery worker.
+    # The arguments must match your function signature:
+    # def send_daily_reminder_task(user_name, phone_number, medicine_name)
     
-    # We call the service directly to skip Celery for this specific test
-    # (This gives us instant feedback in the terminal)
-    success = send_template_message(target_phone, template_name, params)
+    task_result = send_daily_reminder_task.delay(
+        user_name=user_name,
+        phone_number=target_phone,
+        medicine_name=medicine_name
+    )
 
-    if success:
-        print("✅ Success! Message sent to Meta.")
-        print("👉 IF YOU DON'T RECEIVE IT: Open WhatsApp on your phone and reply 'Hello' to the test number.")
-    else:
-        print("❌ Failed. Check your .env credentials.")
+    # 5. CONFIRMATION
+    # Since this is async, we only get a Task ID back, not the final success/fail result yet.
+    print(f"✅ Task Queued successfully!")
+    print(f"🆔 Task ID: {task_result.id}")
+    print("👉 Check your running 'celery worker' terminal to see the execution logs.")
 
 if __name__ == "__main__":
-    trigger_hello_world_test()
+    trigger_celery_task_manual()
