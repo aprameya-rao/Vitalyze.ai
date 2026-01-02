@@ -11,6 +11,8 @@ const metricOptions = [
   { value: "sugar", name: "Blood Sugar / Glucose", keywords: ["sugar", "glucose", "fasting"] },
   { value: "hemoglobin", name: "Hemoglobin", keywords: ["hemoglobin", "hb"] },
   { value: "wbc", name: "White Blood Cells", keywords: ["wbc", "white blood"] },
+  { value: "platelet", name: "Platelet Count", keywords: ["platelet", "plt"] },
+  { value: "creatinine", name: "Creatinine", keywords: ["creatinine", "creat"] },
 ];
 
 function Trend() {
@@ -19,30 +21,51 @@ function Trend() {
   const [error, setError] = useState("");
   const [selectedMetric, setSelectedMetric] = useState("bp");
 
+  // --- UPDATED PARSING LOGIC ---
   const findValueInEntities = (entities, keywords) => {
-    if (!entities) return null;
-    const match = entities.find(e => 
-      keywords.some(k => e.Description.toLowerCase().includes(k))
-    );
+    if (!entities || !Array.isArray(entities)) return null;
+
+    // 1. Find the matching entity
+    const match = entities.find(e => {
+      // Support both NEW format (Indicator) and OLD format (Description)
+      const textToSearch = (e.Indicator || e.Description || "").toLowerCase();
+      return keywords.some(k => textToSearch.includes(k));
+    });
+
     if (match) {
-      const numMatch = match.Description.match(/(\d+(\.\d+)?)/);
+      // 2. Extract the string containing the number
+      // New format has explicit "Value" field (e.g. "14.0 g/dL")
+      // Old format mixed it in "Description"
+      const valueString = match.Value || match.Description || "";
+
+      // 3. Regex to find the first valid number (integer or decimal)
+      const numMatch = valueString.match(/(\d+(\.\d+)?)/);
+      
+      // Return the float if found
       return numMatch ? parseFloat(numMatch[0]) : null;
     }
     return null;
   };
 
   const processReportsData = (reports) => {
+    // Sort by date (Oldest -> Newest)
     const sortedReports = reports.sort((a, b) => new Date(a.upload_date) - new Date(b.upload_date));
+
     return sortedReports.map(report => {
       const dateStr = new Date(report.upload_date).toLocaleDateString();
-      return {
+      
+      // Dynamic object creation based on metricOptions
+      const dataPoint = {
         date: dateStr,
-        bp: findValueInEntities(report.structured_entities, metricOptions[0].keywords),
-        sugar: findValueInEntities(report.structured_entities, metricOptions[1].keywords),
-        hemoglobin: findValueInEntities(report.structured_entities, metricOptions[2].keywords),
-        wbc: findValueInEntities(report.structured_entities, metricOptions[3].keywords),
         fileName: report.filename
       };
+
+      // Populate all metrics for this report
+      metricOptions.forEach(metric => {
+        dataPoint[metric.value] = findValueInEntities(report.structured_entities, metric.keywords);
+      });
+
+      return dataPoint;
     });
   };
 
@@ -75,7 +98,6 @@ function Trend() {
       
       <div className="trend-controls">
         <label htmlFor="metric" style={{ marginRight: '15px' }}>Track Indicator:</label>
-        {/* Applied the new class here */}
         <select
           id="metric"
           className="trend-dropdown"
@@ -97,21 +119,21 @@ function Trend() {
           <div className="trend-chart-card">
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={data} margin={{ top: 30, right: 30, left: 10, bottom: 10 }}>
-                {/* Changed Grid color to be subtle in dark mode */}
                 <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
                 <XAxis dataKey="date" stroke="#8b949e" />
                 <YAxis domain={['auto', 'auto']} stroke="#8b949e" />
                 
-                {/* Updated Tooltip to use CSS class instead of inline white styles */}
                 <Tooltip 
                   cursor={{ stroke: '#00bcd4', strokeWidth: 1 }}
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
+                      const val = payload[0].value;
+                      const src = payload[0].payload.fileName;
                       return (
                         <div className="custom-tooltip">
                           <p className="label">{`Date: ${label}`}</p>
-                          <p className="intro">{`${currentMetricName}: ${payload[0].value}`}</p>
-                          <p className="desc">{`Source: ${payload[0].payload.fileName}`}</p>
+                          <p className="intro">{`${currentMetricName}: ${val}`}</p>
+                          <p className="desc">{`Source: ${src}`}</p>
                         </div>
                       );
                     }
@@ -122,7 +144,7 @@ function Trend() {
                 <Line 
                   type="monotone" 
                   dataKey={selectedMetric} 
-                  stroke="#00bcd4" /* Primary Cyan */
+                  stroke="#00bcd4" 
                   strokeWidth={3}
                   activeDot={{ r: 8, fill: '#00bcd4', stroke: '#fff' }} 
                   connectNulls={true}
@@ -137,8 +159,14 @@ function Trend() {
             <h3>Insight</h3>
             <ul style={{ margin: 0 }}>
               <li>Showing data extracted from <b>{data.length}</b> reports.</li>
+              {/* Count how many reports actually have data for the SELECTED metric */}
+              <li>
+                <b>{data.filter(d => d[selectedMetric] !== null).length}</b> reports contained data for {currentMetricName}.
+              </li>
               {data.filter(d => d[selectedMetric] !== null).length === 0 && 
-                 <li>Note: We couldn't find explicit values for "{currentMetricName}" in your reports yet.</li>
+                 <li style={{color: '#ff7b72', marginTop: '10px'}}>
+                    No data points found for this metric. Try extracting a report that contains {currentMetricName}.
+                 </li>
               }
             </ul>
           </div>

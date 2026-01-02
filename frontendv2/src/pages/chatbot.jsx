@@ -1,15 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
+import ReactMarkdown from 'react-markdown'; // <-- Import this
 import api from "../services/api";
 import '../App.css';
 
 function Chatbot() {
   const [messages, setMessages] = useState([
-    { from: "bot", text: "Hi, I am Vitalyze AI. I can answer your medical questions. How can I help you today?" }
+    { from: "bot", text: "Hi, I am **Vitalyze AI**. I can answer your medical questions. How can I help you today?" }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // Auto-scroll to bottom of chat
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -24,7 +24,7 @@ function Chatbot() {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // 1. Add User Message immediately
+    // 1. Add User Message
     const newMessages = [...messages, { from: "user", text: trimmed }];
     setMessages(newMessages);
     setInput("");
@@ -57,7 +57,7 @@ function Chatbot() {
     <div className="chatbot-container">
       <div className="chat-header">
         <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Vitalyze AI Assistant</span>
-        <span style={{ fontSize: '0.8rem', opacity: 0.8, display: 'block' }}>Powered by Gemini Medical AI</span>
+        <span style={{ fontSize: '0.8rem', opacity: 0.8, display: 'block', color: '#8b949e' }}>Powered by Gemini Medical AI</span>
       </div> 
       
       <div className="chat-messages">
@@ -66,7 +66,8 @@ function Chatbot() {
             key={idx}
             className={`message ${m.from === "bot" ? "ai-message" : "user-message"}`}
           >
-            {m.text}
+            {/* Render Markdown content safely */}
+            <ReactMarkdown>{m.text}</ReactMarkdown>
           </div>
         ))}
         
@@ -86,13 +87,14 @@ function Chatbot() {
           onKeyDown={handleKeyDown}
           className="chat-input input-field" 
           disabled={loading}
+          style={{ height: '48px', marginBottom: 0 }} 
         />
         <button 
           onClick={handleSend}
           className="send-button"
           disabled={loading || !input.trim()}
         >
-          Send
+          {loading ? "..." : "SEND"}
         </button>
       </div>
     </div>
