@@ -21,21 +21,17 @@ function Trend() {
   const [error, setError] = useState("");
   const [selectedMetric, setSelectedMetric] = useState("bp");
 
-  // --- UPDATED PARSING LOGIC ---
   const findValueInEntities = (entities, keywords) => {
     if (!entities || !Array.isArray(entities)) return null;
 
     // 1. Find the matching entity
     const match = entities.find(e => {
-      // Support both NEW format (Indicator) and OLD format (Description)
       const textToSearch = (e.Indicator || e.Description || "").toLowerCase();
       return keywords.some(k => textToSearch.includes(k));
     });
 
     if (match) {
       // 2. Extract the string containing the number
-      // New format has explicit "Value" field (e.g. "14.0 g/dL")
-      // Old format mixed it in "Description"
       const valueString = match.Value || match.Description || "";
 
       // 3. Regex to find the first valid number (integer or decimal)
@@ -51,12 +47,13 @@ function Trend() {
     // Sort by date (Oldest -> Newest)
     const sortedReports = reports.sort((a, b) => new Date(a.upload_date) - new Date(b.upload_date));
 
-    return sortedReports.map(report => {
-      const dateStr = new Date(report.upload_date).toLocaleDateString();
+    return sortedReports.map((report, index) => {
+      const dateObj = new Date(report.upload_date);
       
-      // Dynamic object creation based on metricOptions
       const dataPoint = {
-        date: dateStr,
+        // Use timestamp (number) + index to ensure uniqueness even if dates are identical
+        timestamp: dateObj.getTime() + index,
+        displayDate: dateObj.toLocaleDateString(),
         fileName: report.filename
       };
 
@@ -120,8 +117,26 @@ function Trend() {
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={data} margin={{ top: 30, right: 30, left: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
-                <XAxis dataKey="date" stroke="#8b949e" />
-                <YAxis domain={['auto', 'auto']} stroke="#8b949e" />
+                
+                {/* XAxis Updated:
+                   - type="number": Treat X-axis as continuous numbers (timestamps)
+                   - dataKey="timestamp": Unique ID for every point
+                   - tickFormatter: Converts timestamp back to readable date
+                   - padding: Adds space on left/right so dots aren't on the edge
+                */}
+                <XAxis 
+                  dataKey="timestamp" 
+                  type="number"
+                  domain={['dataMin', 'dataMax']} 
+                  tickFormatter={(unixTime) => new Date(unixTime).toLocaleDateString()}
+                  stroke="#8b949e" 
+                  padding={{ left: 30, right: 30 }}
+                />
+
+                {/* YAxis Updated:
+                   - domain={[0, 'auto']}: Forces graph to start at 0
+                */}
+                <YAxis domain={[0, 'auto']} stroke="#8b949e" />
                 
                 <Tooltip 
                   cursor={{ stroke: '#00bcd4', strokeWidth: 1 }}
@@ -129,9 +144,11 @@ function Trend() {
                     if (active && payload && payload.length) {
                       const val = payload[0].value;
                       const src = payload[0].payload.fileName;
+                      const dateDisplay = payload[0].payload.displayDate; // Use pre-formatted date
+                      
                       return (
                         <div className="custom-tooltip">
-                          <p className="label">{`Date: ${label}`}</p>
+                          <p className="label">{`Date: ${dateDisplay}`}</p>
                           <p className="intro">{`${currentMetricName}: ${val}`}</p>
                           <p className="desc">{`Source: ${src}`}</p>
                         </div>
@@ -159,7 +176,6 @@ function Trend() {
             <h3>Insight</h3>
             <ul style={{ margin: 0 }}>
               <li>Showing data extracted from <b>{data.length}</b> reports.</li>
-              {/* Count how many reports actually have data for the SELECTED metric */}
               <li>
                 <b>{data.filter(d => d[selectedMetric] !== null).length}</b> reports contained data for {currentMetricName}.
               </li>
