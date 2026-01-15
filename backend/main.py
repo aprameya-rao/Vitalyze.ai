@@ -21,7 +21,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-
+ 
 
 app.add_middleware(
     CORSMiddleware,

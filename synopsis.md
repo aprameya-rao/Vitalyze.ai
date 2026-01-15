@@ -6,7 +6,7 @@
 
 ### **1. Introduction (Abstract)**
 
-Vitalyze.ai is a backend service designed to function as an intelligent health assistant. The primary goal of the project is to address the significant challenge patients face in understanding complex medical data, particularly lab reports. The platform ingests medical documents, uses a hybrid text extraction pipeline to parse them, and provides simplified, actionable information. Furthermore, it acts as a centralized hub for managing personal health tasks, such as medication adherence and refills, by integrating with communication platforms like WhatsApp. The project aims to empower users by making their own health data accessible, understandable, and manageable.
+Vitalyze.ai is a full stack service designed to function as an intelligent health assistant. The primary goal of the project is to address the significant challenge patients face in understanding complex medical data, particularly lab reports. The platform ingests medical documents, uses a hybrid text extraction pipeline to parse them, and provides simplified, actionable information. Furthermore, it acts as a centralized hub for managing personal health tasks, such as medication adherence and refills, by integrating with communication platforms like WhatsApp. The project aims to empower users by making their own health data accessible, understandable, and manageable.
 
 ---
 
