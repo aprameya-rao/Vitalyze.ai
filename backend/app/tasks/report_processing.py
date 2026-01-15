@@ -41,10 +41,24 @@ def pdf_to_cv2_objects(pdf_path: str, dpi: int = 300) -> List[np.ndarray]:
     return cv2_images
 
 def preprocessor(cv2_image: np.ndarray) -> np.ndarray:
+    # 1. Convert to Gray
     gray = cv2.cvtColor(cv2_image, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-    return thresh
+    
+    # 2. Rescale (Zoom) - Tesseract loves 300+ DPI. 
+    # If the input is small, double the size.
+    # height, width = gray.shape[:2]
+    # gray = cv2.resize(gray, (width*2, height*2), interpolation=cv2.INTER_CUBIC)
+
+    # 3. Apply Adaptive Thresholding (Better for shadows/uneven lighting)
+    # This keeps local details that Otsu misses
+    thresh = cv2.adaptiveThreshold(
+        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+    )
+    
+    # 4. Denoise slightly
+    processed = cv2.medianBlur(thresh, 3)
+    
+    return processed
 
 def extract_text(processed_image: np.ndarray) -> str:
     return pytesseract.image_to_string(processed_image, lang="eng", config=custom_config)
@@ -101,7 +115,7 @@ def extract_vitals_with_gemini(full_text: str) -> List[Dict[str, str]]:
         Analyze the following medical report text and extract the medical test results.
 
         REPORT TEXT:
-        "{full_text[:5000]}"
+        "{full_text}"
 
         INSTRUCTIONS:
         1. Identify specific medical tests and their measured values.
