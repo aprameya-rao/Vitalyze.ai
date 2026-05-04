@@ -51,9 +51,10 @@ export default function RegisterScreen() {
     }
 
     try {
+      const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`;
       const payload = {
         name: formData.name,
-        phone_number: phone,
+        phone_number: formattedPhone,
         password: formData.password,
         age: formData.age ? parseInt(formData.age) : null,
         gender: formData.gender,
@@ -65,7 +66,17 @@ export default function RegisterScreen() {
       ]);
     } catch (err: any) {
       console.error('Registration Error:', err);
-      const msg = err.response?.data?.detail || 'Registration failed. Try again.';
+      
+      const detail = err.response?.data?.detail;
+      let msg = 'Registration failed. Try again.';
+      
+      // Check if detail is an array (FastAPI 422 error) and extract the first string
+      if (Array.isArray(detail) && detail.length > 0) {
+        msg = detail[0].msg; // e.g., "Field required"
+      } else if (typeof detail === 'string') {
+        msg = detail; // In case you send a custom 400 string error from backend
+      }
+
       setError(msg);
     } finally {
       setLoading(false);
@@ -234,11 +245,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: SIZES.radius / 2,
-    overflow: 'hidden',
+    // Only hide overflow on Android so the iOS wheel isn't cut off
+    overflow: Platform.OS === 'android' ? 'hidden' : 'visible', 
   },
   picker: {
     color: COLORS.text,
-    height: 50,
+    // Give iOS enough room to show the wheel, keep Android at 50
+    height: Platform.OS === 'ios' ? 150 : 50, 
   },
   button: {
     backgroundColor: COLORS.primary,
