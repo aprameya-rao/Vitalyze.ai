@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { File } from 'expo-file-system';
 import Markdown from 'react-native-markdown-display';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
@@ -80,11 +81,14 @@ export default function ReportAnalyserScreen() {
 
     try {
       const fileUri = selectedFile.uri;
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
       
-      if (!fileInfo.exists) {
+      // --- NEW EXPO FILE SYSTEM LOGIC ---
+      const myFile = new File(fileUri);
+      
+      if (!myFile.exists) {
         throw new Error('File not found');
       }
+      // ----------------------------------
 
       const formData = new FormData();
       formData.append('file', {
@@ -106,6 +110,7 @@ export default function ReportAnalyserScreen() {
     }
   };
 
+  
   // Filter logic for cleaned data
   const rawData =
     analysisResult?.vital_indicators && analysisResult.vital_indicators.length > 0
