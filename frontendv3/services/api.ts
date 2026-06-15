@@ -35,16 +35,17 @@ export const authService = {
   },
 
   login: async (phone: string, password: string) => {
-    const params = new URLSearchParams();
-    params.append('username', phone);
-    params.append('password', password);
+    // Ensure the phone number starts with +91
+    const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`;
+
+    // Manually format the string and encode the + symbol correctly
+    const params = `username=${encodeURIComponent(formattedPhone)}&password=${encodeURIComponent(password)}`;
 
     const response = await api.post('/auth/login', params, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     return response.data;
   },
-
   getCurrentUser: async () => {
     return await SecureStore.getItemAsync('access_token');
   },
