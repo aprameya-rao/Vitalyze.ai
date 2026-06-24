@@ -9,6 +9,9 @@ import fitz  # PyMuPDF
 import asyncio
 from pdf2image import convert_from_path
 from typing import List, Dict, Any, Union, Optional
+import google.generativeai as genai
+import os
+import json
 
 from google.oauth2 import service_account
 import vertexai
@@ -92,24 +95,20 @@ def extract_text_from_pdf(file_path: str) -> str:
 
 # --- NEW: Gemini Extraction Function ---
 
-def extract_vitals_with_gemini(full_text: str) -> List[Dict[str, str]]:
-    """
-    Uses Vertex AI (Gemini) to extract structured key-value pairs.
-    """
+api_key = getattr(settings, "GEMINI_FREE_API_KEY", None)
+
+if api_key:
+    # 2. Explicitly hand it to the Google SDK
+    genai.configure(api_key=api_key)
+else:
+    logger.error("CRITICAL: GEMINI_FREE_API_KEY is missing from settings!")
+
+
+def extract_vitals_with_gemini(full_text: str) -> list:
     try:
-        creds = service_account.Credentials.from_service_account_file(
-            settings.GOOGLE_APPLICATION_CREDENTIALS
-        )
+        # gemini-2.5-flash is faster and great for extraction
+        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
         
-        vertexai.init(
-            project=settings.GCP_PROJECT_ID, 
-            location=settings.GCP_LOCATION, 
-            credentials=creds
-        )
-        
-        model = GenerativeModel("gemini-2.5-pro")
-        
-        # We ask Gemini to output strict JSON
         prompt = f"""
         You are an expert medical data extractor. 
         Analyze the following medical report text and extract the medical test results.
@@ -131,40 +130,21 @@ def extract_vitals_with_gemini(full_text: str) -> List[Dict[str, str]]:
             {{"Indicator": "RBC Count", "Value": "4.5 mill/mm3"}}
         ]
         """
-
-        logger.info("Asking Gemini to extract structured vitals...")
-        response = model.generate_content(prompt)
         
-        # Clean the response to ensure it's valid JSON (Gemini sometimes adds ```json markers)
+        response = model.generate_content(prompt)
+
         raw_response = response.text.strip()
         clean_json = raw_response.replace("```json", "").replace("```", "").strip()
         
         extracted_data = json.loads(clean_json)
         return extracted_data
-
     except Exception as e:
-        logger.error(f"Gemini Extraction failed: {e}")
-        # Return empty list so the app doesn't crash
+        logger.error(f"Extraction failed: {e}")
         return []
 
-
-def generate_summary_with_gemini(entities: List[Dict], full_text: str) -> str:
-    """
-    Summarization Step (Uses the same model configuration)
-    """
+def generate_summary_with_gemini(entities: list, full_text: str) -> str:
     try:
-        creds = service_account.Credentials.from_service_account_file(
-            settings.GOOGLE_APPLICATION_CREDENTIALS
-        )
-        
-        vertexai.init(
-            project=settings.GCP_PROJECT_ID, 
-            location=settings.GCP_LOCATION, 
-            credentials=creds
-        )
-        
-        model = GenerativeModel("gemini-2.5-pro")
-        
+        model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""
         You are a helpful medical assistant using Vitalyze.ai. 
         
@@ -183,10 +163,104 @@ def generate_summary_with_gemini(entities: List[Dict], full_text: str) -> str:
 
         response = model.generate_content(prompt)
         return response.text
-
     except Exception as e:
-        logger.error(f"Gemini Summary failed: {e}")
-        return "Unable to generate AI summary at this time."
+        return "Summary generation failed."
+
+# def extract_vitals_with_gemini(full_text: str) -> List[Dict[str, str]]:
+#     """
+#     Uses Vertex AI (Gemini) to extract structured key-value pairs.
+#     """
+#     try:
+#         creds = service_account.Credentials.from_service_account_file(
+#             settings.GOOGLE_APPLICATION_CREDENTIALS
+#         )
+        
+#         vertexai.init(
+#             project=settings.GCP_PROJECT_ID, 
+#             location=settings.GCP_LOCATION, 
+#             credentials=creds
+#         )
+        
+#         model = GenerativeModel("gemini-2.5-pro")
+        
+#         # We ask Gemini to output strict JSON
+#         prompt = f"""
+#         You are an expert medical data extractor. 
+#         Analyze the following medical report text and extract the medical test results.
+
+#         REPORT TEXT:
+#         "{full_text}"
+
+#         INSTRUCTIONS:
+#         1. Identify specific medical tests and their measured values.
+#         2. Combine the numeric value and the unit into the "Value" field (e.g., "14.2 g/dL").
+#         3. IGNORE reference ranges, dates, patient IDs, page numbers, QR codes, and scanner metadata.
+#         4. IGNORE normal/abnormal flags (like "High", "Low").
+#         5. Return ONLY a valid JSON array of objects.
+#         6. Each object must have exactly two keys: "Indicator" (the test name) and "Value" (the result).
+
+#         Example Output Format:
+#         [
+#             {{"Indicator": "Hemoglobin", "Value": "12.5 g/dL"}},
+#             {{"Indicator": "RBC Count", "Value": "4.5 mill/mm3"}}
+#         ]
+#         """
+
+#         logger.info("Asking Gemini to extract structured vitals...")
+#         response = model.generate_content(prompt)
+        
+#         # Clean the response to ensure it's valid JSON (Gemini sometimes adds ```json markers)
+#         raw_response = response.text.strip()
+#         clean_json = raw_response.replace("```json", "").replace("```", "").strip()
+        
+#         extracted_data = json.loads(clean_json)
+#         return extracted_data
+
+#     except Exception as e:
+#         logger.error(f"Gemini Extraction failed: {e}")
+#         # Return empty list so the app doesn't crash
+#         return []
+
+
+# def generate_summary_with_gemini(entities: List[Dict], full_text: str) -> str:
+#     """
+#     Summarization Step (Uses the same model configuration)
+#     """
+#     try:
+#         creds = service_account.Credentials.from_service_account_file(
+#             settings.GOOGLE_APPLICATION_CREDENTIALS
+#         )
+        
+#         vertexai.init(
+#             project=settings.GCP_PROJECT_ID, 
+#             location=settings.GCP_LOCATION, 
+#             credentials=creds
+#         )
+        
+#         model = GenerativeModel("gemini-2.5-pro")
+        
+#         prompt = f"""
+#         You are a helpful medical assistant using Vitalyze.ai. 
+        
+#         Based on these extracted test results:
+#         {json.dumps(entities)}
+
+#         And this raw report text context:
+#         "{full_text[:2000]}..."
+
+#         Write a simple, comforting summary for the patient.
+#         1. Mention the key findings in plain English.
+#         2. Briefly explain what the tests are for (e.g., "Hemoglobin carries oxygen").
+#         3. Do not use complex jargon.
+#         4. End with a disclaimer that you are an AI.
+#         """
+
+#         response = model.generate_content(prompt)
+#         return response.text
+
+#     except Exception as e:
+#         logger.error(f"Gemini Summary failed: {e}")
+#         return "Unable to generate AI summary at this time."
 
 
 # --- Celery Tasks ---

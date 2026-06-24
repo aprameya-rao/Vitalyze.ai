@@ -6,7 +6,7 @@ from app.core.config import settings
 router = APIRouter()
 
 vertexai.init(project=settings.GCP_PROJECT_ID, location=settings.GCP_LOCATION)
-model = GenerativeModel("gemini-1.5-flash")
+model = GenerativeModel("gemini-2.5-flash")
 
 @router.get("/{name}")
 async def get_medicine_details(name: str):

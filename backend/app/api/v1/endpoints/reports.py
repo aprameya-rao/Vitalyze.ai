@@ -55,18 +55,17 @@ def upload_report(
                 gcs_path = storage_service.upload_file(file.file, gcs_destination)
                 logger.info(f"File uploaded to GCS: {gcs_path}")
             except Exception as e:
-                logger.error(f"GCS Upload failed: {e}")
+                # Log the warning but continue since we can fallback to the local file_path
+                logger.warning(f"GCS Upload skipped/failed: {e}. Falling back to local file processing.")
         
+        # FIX: Send arguments positionally to ensure clean chain injection
         workflow = chain(
             task_extract_data_from_pdf.s(str(file_path)),
-            task_run_ai_analysis.s(
-                user_id=str(current_user.id), 
-                filename=file.filename,
-                gcs_path=gcs_path  # Pass the cloud path if it exists
-            )
+            task_run_ai_analysis.s(str(current_user.id), file.filename, gcs_path)
         )
         
         task = workflow.apply_async()
+        logger.info(f"Successfully dispatched Celery task chain with ID: {task.id}")
         
         return {
             "task_id": task.id, 
